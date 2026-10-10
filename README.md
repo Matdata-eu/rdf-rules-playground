@@ -5,6 +5,8 @@ browser. Type or paste a data graph and a shapes graph with `sh:rule`, and see
 which triples the rules infer, which rule inferred each one, on which focus
 node, and in which round. The same engine runs from the command line.
 
+**Live demo:** <https://rdf-rules-playground.matdata.eu/>. The demo runs on a modest server, so it may slow down when many people use it at the same time. For heavy or regular use, run it locally or host your own instance (see [Install](#install) and [Hosting it](#hosting-it)).
+
 ![The playground with the family example: data and rules on the left, the inferred triples on the right](screenshot-webapp.png)
 
 ## Features
