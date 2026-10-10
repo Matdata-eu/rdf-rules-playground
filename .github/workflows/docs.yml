@@ -42,11 +42,11 @@ jobs:
           <html lang="en">
           <head>
               <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0; url=shacl_af_playground/index.html">
-              <title>shacl-af-playground documentation</title>
+              <meta http-equiv="refresh" content="0; url=rdf_rules_playground/index.html">
+              <title>rdf-rules-playground documentation</title>
           </head>
           <body>
-              <p>Redirecting to <a href="shacl_af_playground/index.html">shacl-af-playground documentation</a>...</p>
+              <p>Redirecting to <a href="rdf_rules_playground/index.html">rdf-rules-playground documentation</a>...</p>
           </body>
           </html>
           EOF

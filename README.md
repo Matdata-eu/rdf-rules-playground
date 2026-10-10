@@ -1,4 +1,4 @@
-# shacl-af-playground
+# rdf-rules-playground
 
 Try [SHACL Advanced Features](https://www.w3.org/TR/shacl-af/) rules in your
 browser. Type or paste a data graph and a shapes graph with `sh:rule`, and see
@@ -72,8 +72,8 @@ From a release on GitHub (Linux, macOS, Windows), with Cargo, or as a Docker
 image:
 
 ```sh
-cargo install --git https://github.com/Matdata-eu/shacl-af-playground
-docker run --rm -p 8080:8080 ghcr.io/matdata-eu/shacl-af-playground
+cargo install --git https://github.com/Matdata-eu/rdf-rules-playground
+docker run --rm -p 8080:8080 ghcr.io/matdata-eu/rdf-rules-playground
 ```
 
 ## Usage
@@ -81,15 +81,15 @@ docker run --rm -p 8080:8080 ghcr.io/matdata-eu/shacl-af-playground
 ### The playground
 
 ```sh
-shacl-af-playground                     # opens the playground in your browser
-shacl-af-playground serve --data data.ttl --shapes rules.ttl   # with your files loaded
-shacl-af-playground serve --data big.nt.gz part2.ttl --shapes rules.ttl
+rdf-rules-playground                     # opens the playground in your browser
+rdf-rules-playground serve --data data.ttl --shapes rules.ttl   # with your files loaded
+rdf-rules-playground serve --data big.nt.gz part2.ttl --shapes rules.ttl
 ```
 
 `--data` takes one or more files in any syntax the command line reads (see
 `--format` below). Small data opens in the data editor. Data with more triples
 than `--max-editor-triples N` (default 20 000, or
-`SHACL_AF_PLAYGROUND_MAX_EDITOR_TRIPLES`) is loaded once and kept on the
+`RDF_RULES_PLAYGROUND_MAX_EDITOR_TRIPLES`) is loaded once and kept on the
 server: the data card then shows the file names and a MatGUI query view over
 `/api/data/{id}/sparql`, and every run uses that graph. **Use the editor**
 switches back to typing data, and **Use loaded data** returns to the files.
@@ -119,14 +119,14 @@ on. Under **Options**:
 - **Read rules from the data too**: for files that keep data and shapes together.
 
 The SPARQL tab queries the data graph with everything inferred. The shapes
-graph is the named graph `<urn:x-shacl-af-playground:shapes-graph>`. Each run
+graph is the named graph `<urn:x-rdf-rules-playground:shapes-graph>`. Each run
 has its own endpoint at `/api/runs/{id}/sparql`, so it also works from other
 SPARQL clients while the playground keeps that run (the last 32 runs).
 
 ### From the command line
 
 ```sh
-shacl-af-playground infer --data data.ttl --shapes rules.ttl
+rdf-rules-playground infer --data data.ttl --shapes rules.ttl
 ```
 
 prints the inferred triples as Turtle. Without `--shapes`, the rules are read
@@ -146,7 +146,7 @@ from the data graph.
 | `-q, --quiet` | Print only errors on standard error. |
 
 ```console
-$ shacl-af-playground infer -d examples/rectangles/data.ttl -s examples/rectangles/rules.ttl --explain
+$ rdf-rules-playground infer -d examples/rectangles/data.ttl -s examples/rectangles/rules.ttl --explain
 @prefix ex: <http://example.org/shapes#> .
 
 ex:NonSquareRectangle
@@ -166,17 +166,17 @@ run, and 2 when the input could not be read.
 
 ### Hosting it
 
-`serve --public` (or `SHACL_AF_PLAYGROUND_PUBLIC=true`, as in the Docker image)
+`serve --public` (or `RDF_RULES_PLAYGROUND_PUBLIC=true`, as in the Docker image)
 runs the playground as a public website: it never opens a browser and caps
 every request.
 
 | Flag | Environment variable | Default |
 | --- | --- | --- |
-| `--bind ADDR` | `SHACL_AF_PLAYGROUND_BIND` | `127.0.0.1:0` (Docker: `0.0.0.0:8080`) |
-| `--public` | `SHACL_AF_PLAYGROUND_PUBLIC` | off (Docker: on) |
-| `--max-input-bytes BYTES` | `SHACL_AF_PLAYGROUND_MAX_INPUT_BYTES` | 2 MB per editor |
-| `--max-triples N` | `SHACL_AF_PLAYGROUND_MAX_TRIPLES` | 50 000 per editor, and inferred |
-| `--max-seconds S` | `SHACL_AF_PLAYGROUND_MAX_SECONDS` | 20 per run or query |
+| `--bind ADDR` | `RDF_RULES_PLAYGROUND_BIND` | `127.0.0.1:0` (Docker: `0.0.0.0:8080`) |
+| `--public` | `RDF_RULES_PLAYGROUND_PUBLIC` | off (Docker: on) |
+| `--max-input-bytes BYTES` | `RDF_RULES_PLAYGROUND_MAX_INPUT_BYTES` | 2 MB per editor |
+| `--max-triples N` | `RDF_RULES_PLAYGROUND_MAX_TRIPLES` | 50 000 per editor, and inferred |
+| `--max-seconds S` | `RDF_RULES_PLAYGROUND_MAX_SECONDS` | 20 per run or query |
 
 Public runs are also limited to 50 rounds, and to as many at once as the
 machine has cores.

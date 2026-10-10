@@ -1,9 +1,9 @@
 use clap::Parser;
 use oxrdf::Graph;
-use shacl_af_playground::cli::{Cli, Command, InferArgs, OutputFormat};
-use shacl_af_playground::input::{load_files, merge_prefixes};
-use shacl_af_playground::rules::{self, Options};
-use shacl_af_playground::{output, web};
+use rdf_rules_playground::cli::{Cli, Command, InferArgs, OutputFormat};
+use rdf_rules_playground::input::{load_files, merge_prefixes};
+use rdf_rules_playground::rules::{self, Options};
+use rdf_rules_playground::{output, web};
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
@@ -12,7 +12,7 @@ fn main() -> ExitCode {
         Some(Command::Infer(args)) => infer(args),
         Some(Command::Serve(args)) => web::serve(args),
         // No command: `serve` with its defaults, environment variables included.
-        None => match Cli::parse_from(["shacl-af-playground", "serve"]).command {
+        None => match Cli::parse_from(["rdf-rules-playground", "serve"]).command {
             Some(Command::Serve(args)) => web::serve(args),
             _ => unreachable!("parsed as serve"),
         },
@@ -20,7 +20,7 @@ fn main() -> ExitCode {
     match result {
         Ok(code) => code,
         Err(err) => {
-            eprintln!("shacl-af-playground: error: {err:#}");
+            eprintln!("rdf-rules-playground: error: {err:#}");
             ExitCode::from(2)
         }
     }

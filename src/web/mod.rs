@@ -275,7 +275,7 @@ fn startup_data(
     Ok((output::turtle(&g, &prefixes), None))
 }
 
-/// `shacl-af-playground serve`: start the server and block until ctrl-c.
+/// `rdf-rules-playground serve`: start the server and block until ctrl-c.
 pub fn serve(args: ServeArgs) -> Result<ExitCode> {
     let (data_text, big_data) = startup_data(&args.data, args.format, args.max_editor_triples)?;
     let shapes = args.shapes.as_deref().map(shapes_text).transpose()?;
@@ -317,7 +317,7 @@ pub fn serve(args: ServeArgs) -> Result<ExitCode> {
                 l.max_iterations
             );
         }
-        eprintln!("shacl-af-playground listening on {url}");
+        eprintln!("rdf-rules-playground listening on {url}");
         if !args.no_open
             && !args.public
             && let Err(e) = webbrowser::open(&url)

@@ -1,6 +1,6 @@
 //! The playground's HTTP API, driven over a real socket.
 
-use shacl_af_playground::web::{AppState, Limits, api};
+use rdf_rules_playground::web::{AppState, Limits, api};
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
@@ -119,7 +119,7 @@ fn infers_and_serves_the_result() {
     assert!(body.contains("\"value\":\"4\""), "{body}");
 
     // ...including the shapes graph as a named graph
-    let ask = "ASK { GRAPH <urn:x-shacl-af-playground:shapes-graph> { ?s a <http://www.w3.org/ns/shacl#SPARQLRule> } }";
+    let ask = "ASK { GRAPH <urn:x-rdf-rules-playground:shapes-graph> { ?s a <http://www.w3.org/ns/shacl#SPARQLRule> } }";
     let (status, _, body) = request(
         addr,
         "POST",
@@ -172,7 +172,7 @@ fn serves_the_page_and_examples() {
     let addr = start(None);
     let (status, _, body) = request(addr, "GET", "/", &[], "");
     assert_eq!(status, 200);
-    assert!(body.contains("SHACL-AF playground"));
+    assert!(body.contains("RDF rules playground"));
     let (status, _, body) = request(addr, "GET", "/api/examples", &[], "");
     assert_eq!(status, 200);
     let examples: serde_json::Value = serde_json::from_str(&body).unwrap();

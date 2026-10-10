@@ -1,13 +1,13 @@
-// shacl-af-playground: the browser side. Two Turtle editors (data, and
+// rdf-rules-playground: the browser side. Two Turtle editors (data, and
 // shapes with rules), a run against /api/infer, and four views of the
 // result: inferred triples, rules, Turtle, and SPARQL through MatGUI.
 (function () {
   "use strict";
 
   const $ = (id) => document.getElementById(id);
-  const STORE_KEY = "shacl-af-playground";
-  const THEME_KEY = "shacl-af-playground-theme";
-  const LAYOUT_KEY = "shacl-af-playground-layout";
+  const STORE_KEY = "rdf-rules-playground";
+  const THEME_KEY = "rdf-rules-playground-theme";
+  const LAYOUT_KEY = "rdf-rules-playground-layout";
   const WELL_KNOWN = [
     ["rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"],
     ["rdfs", "http://www.w3.org/2000/01/rdf-schema#"],

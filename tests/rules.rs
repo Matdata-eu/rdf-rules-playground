@@ -1,6 +1,6 @@
 use oxrdf::{Graph, Literal, NamedNode, Term, Triple};
-use shacl_af_playground::input::parse_turtle;
-use shacl_af_playground::rules::{Options, Outcome, infer};
+use rdf_rules_playground::input::parse_turtle;
+use rdf_rules_playground::rules::{Options, Outcome, infer};
 
 fn load(text: &str) -> Graph {
     parse_turtle(text, None).expect("valid Turtle").0
@@ -179,7 +179,7 @@ fn sparql_12_rules_over_triple_terms() {
         &ex("status"),
         iri(&ex("accepted"))
     ));
-    let turtle = shacl_af_playground::output::turtle(
+    let turtle = rdf_rules_playground::output::turtle(
         &out.inferred.iter().map(|i| i.triple.clone()).collect(),
         &[("ex".into(), ex(""))],
     );

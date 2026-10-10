@@ -17,13 +17,13 @@ RUN touch src/main.rs src/lib.rs && cargo build --release --locked
 
 # Runtime stage: glibc and nothing else, running as an unprivileged user.
 FROM gcr.io/distroless/cc-debian12:nonroot
-COPY --from=build /src/target/release/shacl-af-playground /usr/local/bin/shacl-af-playground
+COPY --from=build /src/target/release/rdf-rules-playground /usr/local/bin/rdf-rules-playground
 
 # Serve the playground as a public website on port 8080. Every
-# SHACL_AF_PLAYGROUND_* variable maps to a `serve` flag; see the README.
-ENV SHACL_AF_PLAYGROUND_BIND=0.0.0.0:8080 \
-    SHACL_AF_PLAYGROUND_PUBLIC=true
+# RDF_RULES_PLAYGROUND_* variable maps to a `serve` flag; see the README.
+ENV RDF_RULES_PLAYGROUND_BIND=0.0.0.0:8080 \
+    RDF_RULES_PLAYGROUND_PUBLIC=true
 EXPOSE 8080
 WORKDIR /data
-ENTRYPOINT ["shacl-af-playground"]
+ENTRYPOINT ["rdf-rules-playground"]
 CMD ["serve", "--no-open"]

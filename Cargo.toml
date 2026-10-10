@@ -1,12 +1,12 @@
 [package]
-name = "shacl-af-playground"
+name = "rdf-rules-playground"
 version = "0.1.0"
 edition = "2024"
 description = "Run SHACL Advanced Features rules (sh:TripleRule, sh:SPARQLRule) on RDF data, in a browser playground or from the command line"
 authors = ["Mathias Vanden Auweele <mathias@matdata.eu>"]
 license = "Apache-2.0"
-homepage = "https://github.com/Matdata-eu/shacl-af-playground"
-repository = "https://github.com/Matdata-eu/shacl-af-playground"
+homepage = "https://github.com/Matdata-eu/rdf-rules-playground"
+repository = "https://github.com/Matdata-eu/rdf-rules-playground"
 categories = ["command-line-utilities"]
 keywords = ["rdf", "shacl", "rules", "inference", "sparql"]
 readme = "README.md"

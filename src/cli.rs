@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 #[command(
-    name = "shacl-af-playground",
+    name = "rdf-rules-playground",
     version,
     about = "Run SHACL Advanced Features rules (sh:TripleRule, sh:SPARQLRule) on RDF data",
     long_about = "Run SHACL Advanced Features rules (sh:TripleRule, sh:SPARQLRule) on RDF data.\n\n\
@@ -87,28 +87,28 @@ pub struct ServeArgs {
         long = "max-editor-triples",
         value_name = "N",
         default_value_t = 20_000,
-        env = "SHACL_AF_PLAYGROUND_MAX_EDITOR_TRIPLES"
+        env = "RDF_RULES_PLAYGROUND_MAX_EDITOR_TRIPLES"
     )]
     pub max_editor_triples: usize,
     /// Address to listen on.
-    #[arg(long, default_value = "127.0.0.1:0", env = "SHACL_AF_PLAYGROUND_BIND")]
+    #[arg(long, default_value = "127.0.0.1:0", env = "RDF_RULES_PLAYGROUND_BIND")]
     pub bind: String,
     /// Do not open the browser.
     #[arg(long = "no-open")]
     pub no_open: bool,
     /// Serve the playground as a public website: caps input size, run time
     /// and rounds per request, and never opens a browser.
-    #[arg(long, env = "SHACL_AF_PLAYGROUND_PUBLIC")]
+    #[arg(long, env = "RDF_RULES_PLAYGROUND_PUBLIC")]
     pub public: bool,
     /// In public mode: most bytes of Turtle per editor.
-    #[arg(long = "max-input-bytes", value_name = "BYTES", default_value_t = 2 * 1024 * 1024, env = "SHACL_AF_PLAYGROUND_MAX_INPUT_BYTES")]
+    #[arg(long = "max-input-bytes", value_name = "BYTES", default_value_t = 2 * 1024 * 1024, env = "RDF_RULES_PLAYGROUND_MAX_INPUT_BYTES")]
     pub max_input_bytes: usize,
     /// In public mode: most triples per editor, and most inferred triples.
     #[arg(
         long = "max-triples",
         value_name = "N",
         default_value_t = 50_000,
-        env = "SHACL_AF_PLAYGROUND_MAX_TRIPLES"
+        env = "RDF_RULES_PLAYGROUND_MAX_TRIPLES"
     )]
     pub max_triples: usize,
     /// In public mode: most seconds one run may take.
@@ -116,7 +116,7 @@ pub struct ServeArgs {
         long = "max-seconds",
         value_name = "S",
         default_value_t = 20,
-        env = "SHACL_AF_PLAYGROUND_MAX_SECONDS"
+        env = "RDF_RULES_PLAYGROUND_MAX_SECONDS"
     )]
     pub max_seconds: u64,
 }

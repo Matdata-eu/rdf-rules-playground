@@ -961,6 +961,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "rdf-rules-playground"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum",
+ "clap",
+ "flate2",
+ "getrandom",
+ "oxrdf",
+ "oxrdfxml",
+ "oxsdatatypes",
+ "oxttl",
+ "regex",
+ "serde",
+ "serde_json",
+ "sparesults",
+ "spareval",
+ "spargebra",
+ "tokio",
+ "webbrowser",
+]
+
+[[package]]
 name = "regex"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1117,29 +1140,6 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
-]
-
-[[package]]
-name = "shacl-af-playground"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum",
- "clap",
- "flate2",
- "getrandom",
- "oxrdf",
- "oxrdfxml",
- "oxsdatatypes",
- "oxttl",
- "regex",
- "serde",
- "serde_json",
- "sparesults",
- "spareval",
- "spargebra",
- "tokio",
- "webbrowser",
 ]
 
 [[package]]

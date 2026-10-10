@@ -1,4 +1,4 @@
-// shacl-af-playground: Turtle editors on CodeMirror 6 (bundled as the
+// rdf-rules-playground: Turtle editors on CodeMirror 6 (bundled as the
 // global ShaclCodeMirror, see assets/vendor/codemirror/NOTICE.md).
 (function () {
   "use strict";

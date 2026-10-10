@@ -1,6 +1,6 @@
 # Third-party notices
 
-shacl-af-playground is licensed under Apache-2.0 (see LICENSE). It includes
+rdf-rules-playground is licensed under Apache-2.0 (see LICENSE). It includes
 the following third-party software, each under its own license. Where a
 package offers a choice of licenses, it is used under any one of them. The
 license texts are at the end of this file.

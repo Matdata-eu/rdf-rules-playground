@@ -12,7 +12,7 @@ use std::collections::HashMap;
 
 /// The name `$shapesGraph` is bound to. The shapes are queryable as this
 /// named graph; the data graph is the default graph.
-pub const SHAPES_GRAPH: &str = "urn:x-shacl-af-playground:shapes-graph";
+pub const SHAPES_GRAPH: &str = "urn:x-rdf-rules-playground:shapes-graph";
 
 /// The data graph (default graph) plus the shapes graph (named graph),
 /// kept in sync with the working graph as rules add triples.
