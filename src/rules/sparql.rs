@@ -68,12 +68,13 @@ pub enum Answer {
 /// Run `query` with the given variables pre-bound. A pre-bound variable the
 /// query does not mention is ignored.
 pub fn run(store: &Store, query: &Query, bindings: &[(&str, Term)]) -> Result<Answer> {
-    // Blank nodes can only be pre-bound by the evaluator itself, and the
-    // optimizer then treats those variables as unbound in places the
-    // pattern does not bind them (e.g. a FILTER); run without it.
+    // Blank nodes, and triple terms that may hold them, can only be pre-bound
+    // by the evaluator itself, and the optimizer then treats those variables
+    // as unbound in places the pattern does not bind them (e.g. a FILTER);
+    // run without it.
     let evaluator = if bindings
         .iter()
-        .any(|(_, t)| matches!(t, Term::BlankNode(_)))
+        .any(|(_, t)| matches!(t, Term::BlankNode(_) | Term::Triple(_)))
     {
         QueryEvaluator::new().without_optimizations()
     } else {
@@ -87,7 +88,7 @@ pub fn run(store: &Store, query: &Query, bindings: &[(&str, Term)]) -> Result<An
         .filter_map(|(n, t)| match t {
             Term::NamedNode(n2) => Some((*n, Expression::NamedNode(n2.clone()))),
             Term::Literal(l) => Some((*n, Expression::Literal(l.clone()))),
-            Term::BlankNode(_) => None,
+            Term::BlankNode(_) | Term::Triple(_) => None,
         })
         .collect();
     let mut query = query.clone();
@@ -116,7 +117,7 @@ pub fn run(store: &Store, query: &Query, bindings: &[(&str, Term)]) -> Result<An
     let query = &query;
     let mut bindings: Vec<(&str, Term)> = bindings
         .iter()
-        .filter(|(_, t)| matches!(t, Term::BlankNode(_)))
+        .filter(|(_, t)| matches!(t, Term::BlankNode(_) | Term::Triple(_)))
         .cloned()
         .collect();
     let results = loop {

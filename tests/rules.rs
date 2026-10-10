@@ -153,6 +153,43 @@ fn sparql_targets_and_deactivated_rules() {
 }
 
 #[test]
+fn sparql_12_rules_over_triple_terms() {
+    let out = example("statements", &Options::default());
+    let ex = |l: &str| format!("http://example.org/{l}");
+    // Confident claims are stated, doubtful ones are not.
+    assert!(has(&out, &ex("alice"), &ex("worksFor"), iri(&ex("acme"))));
+    assert!(!has(&out, &ex("bob"), &ex("worksFor"), iri(&ex("acme"))));
+    assert!(has(
+        &out,
+        &ex("alice"),
+        &ex("colleagueOf"),
+        iri(&ex("dave"))
+    ));
+    // Triple terms as objects, matched and built in SPARQL 1.2.
+    let doubtful = Triple::new(iri(&ex("bob")), iri(&ex("worksFor")), iri(&ex("acme")));
+    assert!(has(&out, &ex("bob"), &ex("doubtfulClaim"), doubtful));
+    let reports = Triple::new(iri(&ex("alice")), iri(&ex("reportsTo")), iri(&ex("carol")));
+    assert!(has(&out, &ex("orgChart"), &ex("states"), reports));
+    for claim in ["claim1", "claim3", "claim4"] {
+        assert!(has(&out, &ex(claim), &ex("status"), iri(&ex("accepted"))));
+    }
+    assert!(!has(
+        &out,
+        &ex("claim2"),
+        &ex("status"),
+        iri(&ex("accepted"))
+    ));
+    let turtle = shacl_af_playground::output::turtle(
+        &out.inferred.iter().map(|i| i.triple.clone()).collect(),
+        &[("ex".into(), ex(""))],
+    );
+    assert!(
+        turtle.contains("<<( ex:bob ex:worksFor ex:acme )>>"),
+        "{turtle}"
+    );
+}
+
+#[test]
 fn blank_nodes_in_construct_stop_at_the_limit() {
     let data = load("@prefix ex: <http://ex/> . ex:a a ex:Thing .");
     let shapes = load(

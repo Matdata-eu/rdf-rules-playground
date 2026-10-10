@@ -1,0 +1,99 @@
+# SPARQL 1.2 rules over RDF 1.2 data: triple terms <<( s p o )>>, reifiers
+# << s p o >>, and the functions TRIPLE, SUBJECT, PREDICATE, OBJECT and
+# isTRIPLE.
+
+@prefix ex: <http://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex: sh:declare [
+    sh:prefix "ex" ;
+    sh:namespace "http://example.org/"^^xsd:anyURI ;
+] , [
+    sh:prefix "rdf" ;
+    sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ;
+] .
+
+# Every reifier is a claim.
+ex:ClaimShape
+    a sh:NodeShape ;
+    sh:targetSubjectsOf rdf:reifies ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Trust confident claims" ;
+        rdfs:comment "States the triple a claim describes when its confidence is at least 0.8." ;
+        sh:prefixes ex: ;
+        sh:construct """
+            CONSTRUCT { ?s ?p ?o }
+            WHERE {
+                $this rdf:reifies <<( ?s ?p ?o )>> ;
+                      ex:confidence ?confidence .
+                FILTER (?confidence >= 0.8)
+            }
+            """ ;
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Mark accepted claims" ;
+        rdfs:comment "A claim whose triple is stated is accepted; built with SUBJECT, PREDICATE and OBJECT." ;
+        sh:order 1 ;
+        sh:prefixes ex: ;
+        sh:construct """
+            CONSTRUCT { $this ex:status ex:accepted }
+            WHERE {
+                $this rdf:reifies ?t .
+                FILTER isTRIPLE(?t)
+                BIND (SUBJECT(?t) AS ?s)
+                BIND (PREDICATE(?t) AS ?p)
+                BIND (OBJECT(?t) AS ?o)
+                ?s ?p ?o .
+            }
+            """ ;
+    ] .
+
+ex:PersonShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Person ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Flag doubtful claims" ;
+        rdfs:comment "Records, as a triple term, every claim about a person that is not trusted." ;
+        sh:prefixes ex: ;
+        sh:construct """
+            CONSTRUCT { $this ex:doubtfulClaim ?t }
+            WHERE {
+                ?claim rdf:reifies ?t ;
+                       ex:confidence ?confidence .
+                FILTER (SUBJECT(?t) = $this && ?confidence < 0.8)
+            }
+            """ ;
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Colleagues" ;
+        rdfs:comment "People who work for the same organisation, once the claims are trusted." ;
+        sh:prefixes ex: ;
+        sh:construct """
+            CONSTRUCT { $this ex:colleagueOf ?other }
+            WHERE {
+                $this ex:worksFor ?org .
+                ?other ex:worksFor ?org .
+                FILTER ($this != ?other)
+            }
+            """ ;
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Reporting lines" ;
+        rdfs:comment "Builds a triple term with TRIPLE() and states who reported it." ;
+        sh:prefixes ex: ;
+        sh:construct """
+            CONSTRUCT { $this ex:reportsTo ?boss . ex:orgChart ex:states ?t }
+            WHERE {
+                ?boss ex:manages $this .
+                BIND (TRIPLE($this, ex:reportsTo, ?boss) AS ?t)
+            }
+            """ ;
+    ] .

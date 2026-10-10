@@ -1,0 +1,25 @@
+# Claims about who works where, collected from several sources. Each claim
+# is a reifier: it describes the triple without stating it (RDF 1.2).
+
+@prefix ex: <http://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:alice a ex:Person ; ex:name "Alice" .
+ex:bob a ex:Person ; ex:name "Bob" .
+ex:carol a ex:Person ; ex:name "Carol" .
+ex:dave a ex:Person ; ex:name "Dave" ; ex:worksFor ex:acme .
+
+<< ex:alice ex:worksFor ex:acme ~ ex:claim1 >>
+    ex:source ex:hrSystem ;
+    ex:confidence 0.95 .
+
+<< ex:bob ex:worksFor ex:acme ~ ex:claim2 >>
+    ex:source ex:socialProfile ;
+    ex:confidence 0.4 .
+
+<< ex:carol ex:worksFor ex:globex ~ ex:claim3 >>
+    ex:source ex:payroll ;
+    ex:confidence 0.9 .
+
+# An asserted triple with an annotation: stated and described at once.
+ex:carol ex:manages ex:alice ~ ex:claim4 {| ex:source ex:orgChart |} .

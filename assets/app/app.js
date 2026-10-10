@@ -72,19 +72,51 @@
 
   // ---------- terms ----------
 
-  /** Parse an N-Triples term into { kind, value, lang?, datatype? }. */
+  /**
+   * Parse an N-Triples term into { kind, value, lang?, datatype? }, or for an
+   * RDF 1.2 triple term <<( s p o )>> into { kind: "triple", s, p, o }.
+   */
   function parseTerm(t) {
-    if (t.startsWith("<")) return { kind: "iri", value: t.slice(1, -1) };
-    if (t.startsWith("_:")) return { kind: "bnode", value: t.slice(2) };
-    const m = /^"([\s\S]*)"(?:@([A-Za-z0-9-]+)|\^\^<([^>]*)>)?$/.exec(t);
-    if (!m) return { kind: "other", value: t };
-    let value = m[1];
-    try {
-      value = JSON.parse(`"${m[1]}"`);
-    } catch (_) {
-      /* keep the escaped form */
+    const r = readTerm(String(t).trim(), 0);
+    return r && r.end === String(t).trim().length ? r.term : { kind: "other", value: t };
+  }
+
+  /** Read one N-Triples term at `i`; returns { term, end } or null. */
+  function readTerm(t, i) {
+    while (t[i] === " ") i++;
+    if (t.startsWith("<<(", i)) {
+      const parts = [];
+      let at = i + 3;
+      for (let n = 0; n < 3; n++) {
+        const r = readTerm(t, at);
+        if (!r) return null;
+        parts.push(r.term);
+        at = r.end;
+      }
+      while (t[at] === " ") at++;
+      if (!t.startsWith(")>>", at)) return null;
+      return { term: { kind: "triple", s: parts[0], p: parts[1], o: parts[2] }, end: at + 3 };
     }
-    return { kind: "literal", value, lang: m[2] || null, datatype: m[3] || null };
+    if (t[i] === "<") {
+      const end = t.indexOf(">", i);
+      return end < 0 ? null : { term: { kind: "iri", value: t.slice(i + 1, end) }, end: end + 1 };
+    }
+    if (t.startsWith("_:", i)) {
+      const m = /^_:[^\s)]+/.exec(t.slice(i));
+      return { term: { kind: "bnode", value: m[0].slice(2) }, end: i + m[0].length };
+    }
+    if (t[i] === '"') {
+      const m = /^"((?:[^"\\]|\\.)*)"(?:@([A-Za-z0-9-]+)|\^\^<([^>]*)>)?/.exec(t.slice(i));
+      if (!m) return null;
+      let value = m[1];
+      try {
+        value = JSON.parse(`"${m[1]}"`);
+      } catch (_) {
+        /* keep the escaped form */
+      }
+      return { term: { kind: "literal", value, lang: m[2] || null, datatype: m[3] || null }, end: i + m[0].length };
+    }
+    return null;
   }
 
   function shortIri(iri) {
@@ -105,8 +137,13 @@
 
   /** Plain-text form of an N-Triples term, using prefixes. */
   function termText(t) {
-    const p = parseTerm(t);
+    return parsedText(parseTerm(t));
+  }
+
+  function parsedText(p) {
     switch (p.kind) {
+      case "triple":
+        return `<<( ${parsedText(p.s)} ${parsedText(p.p)} ${parsedText(p.o)} )>>`;
       case "iri":
         return shortIri(p.value);
       case "bnode":
@@ -117,14 +154,19 @@
         if (PLAIN_TYPES.has(p.datatype)) return p.value;
         return `"${p.value}"^^${shortIri(p.datatype)}`;
       default:
-        return t;
+        return p.value;
     }
   }
 
   /** HTML form of an N-Triples term. */
   function termHtml(t) {
-    const p = parseTerm(t);
+    return parsedHtml(parseTerm(t));
+  }
+
+  function parsedHtml(p) {
     switch (p.kind) {
+      case "triple":
+        return `<span class="t-triple" title="triple term"><span class="t-meta">&lt;&lt;(</span> ${parsedHtml(p.s)} ${parsedHtml(p.p)} ${parsedHtml(p.o)} <span class="t-meta">)&gt;&gt;</span></span>`;
       case "iri":
         return `<span class="t-iri" title="${esc(shortIri(p.value) === `<${p.value}>` ? p.value : `${shortIri(p.value)}\n${p.value}`)}">${esc(shortIri(p.value))}</span>`;
       case "bnode":
@@ -140,7 +182,7 @@
           : `<span class="t-lit">"${esc(p.value)}"</span>${tail}`;
       }
       default:
-        return esc(t);
+        return esc(p.value);
     }
   }
 
@@ -821,6 +863,26 @@
             PREFIX ex: <http://example.org/>
             CONSTRUCT { $this ex:derived ?value }
             WHERE { $this ex:source ?value }
+            """ ;
+    ] .`,
+    },
+    {
+      title: "SPARQL 1.2 rule with triple terms",
+      text: `ex:ClaimShape
+    a sh:NodeShape ;
+    sh:targetSubjectsOf rdf:reifies ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "state confident claims" ;
+        sh:construct """
+            PREFIX ex: <http://example.org/>
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            CONSTRUCT { ?s ?p ?o }
+            WHERE {
+                $this rdf:reifies <<( ?s ?p ?o )>> ;
+                      ex:confidence ?c .
+                FILTER (?c >= 0.8)
+            }
             """ ;
     ] .`,
     },

@@ -256,7 +256,8 @@ fn triple_rule(
             let subject: NamedOrBlankNode = match &v[0] {
                 Term::NamedNode(n) => n.clone().into(),
                 Term::BlankNode(b) => b.clone().into(),
-                Term::Literal(_) => return None,
+                // RDF 1.2 allows triple terms only as objects.
+                Term::Literal(_) | Term::Triple(_) => return None,
             };
             let Term::NamedNode(predicate) = &v[1] else {
                 return None;

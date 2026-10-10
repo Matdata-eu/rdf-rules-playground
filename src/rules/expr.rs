@@ -128,7 +128,9 @@ impl Expr {
         };
         match node {
             t if *t == Term::from(sh::THIS) => return Ok(Expr::This),
-            Term::NamedNode(_) | Term::Literal(_) => return Ok(Expr::Constant(node.clone())),
+            Term::NamedNode(_) | Term::Literal(_) | Term::Triple(_) => {
+                return Ok(Expr::Constant(node.clone()));
+            }
             Term::BlankNode(_) => {}
         }
         if let Some(p) = object(g, node, sh::PATH) {

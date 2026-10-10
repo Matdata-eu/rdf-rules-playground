@@ -222,6 +222,10 @@ impl Writer<'_> {
                 {
                     return l.value().to_string();
                 }
+                if l.direction().is_some() {
+                    // "text"@lang--dir: written out as is.
+                    return l.to_string();
+                }
                 let quoted = oxrdf::LiteralRef::new_simple_literal(l.value()).to_string();
                 if let Some(lang) = l.language() {
                     format!("{quoted}@{lang}")
@@ -231,8 +235,12 @@ impl Writer<'_> {
                     format!("{quoted}^^{}", self.iri(dt.as_str()))
                 }
             }
-            #[allow(unreachable_patterns)]
-            other => other.to_string(),
+            TermRef::Triple(t) => format!(
+                "<<( {} {} {} )>>",
+                self.term(t.subject.as_ref().into()),
+                self.iri(t.predicate.as_str()),
+                self.term(t.object.as_ref())
+            ),
         }
     }
 

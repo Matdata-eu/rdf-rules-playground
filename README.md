@@ -13,6 +13,11 @@ node, and in which round. The same engine runs from the command line.
   `sh:predicate` and `sh:object`.
 - **SPARQL rules** (`sh:SPARQLRule`) with `sh:construct`, `sh:prefixes`, and
   `$this`, `$currentShape` and `$shapesGraph` pre-bound.
+- **SPARQL 1.2 and RDF 1.2**: data and rules may use triple terms
+  `<<( s p o )>>`, reifiers `<< s p o ~ r >>`, annotations `{| … |}` and
+  directional language tags. SPARQL rules, functions and targets can match
+  and build triple terms and call `TRIPLE`, `SUBJECT`, `PREDICATE`, `OBJECT`,
+  `isTRIPLE`, `LANGDIR` and the other SPARQL 1.2 functions.
 - **Conditions, order and deactivation**: `sh:condition` (checked with a full
   SHACL Core and SHACL-SPARQL validator), `sh:order`, `sh:deactivated`.
 - **Iteration**: rules repeat until a round infers nothing new, so rules can
@@ -95,7 +100,7 @@ Runs on big data list the first 20 000 inferred triples in the table; the
 summary counts all of them, and the downloads and the SPARQL tab have all of
 them.
 
-It starts with the first example; the **Examples** menu has four:
+It starts with the first example; the **Examples** menu has five:
 
 | Example | Shows |
 | --- | --- |
@@ -103,6 +108,7 @@ It starts with the first example; the **Examples** menu has four:
 | Family relations | Path expressions, `sh:union`, `sh:filterShape`, and a rule that needs several rounds. |
 | Orders: aggregates and functions | `sh:count`, `sh:sum`, `sh:max`, a SPARQL function call, and `sh:order`. |
 | Cities: SPARQL target | A SPARQL-based target, and a deactivated rule. |
+| Claims: SPARQL 1.2 and triple terms | Reified claims with a confidence; rules state the confident ones, flag the doubtful ones as triple terms, and build triple terms with `TRIPLE()`. |
 
 Press **Ctrl+Enter** (Cmd+Enter on a Mac) to run, or leave "Run while typing"
 on. Under **Options**:

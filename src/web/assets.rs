@@ -87,4 +87,9 @@ pub static EXAMPLES: &[Example] = &[
         "Cities: SPARQL target",
         "A SPARQL-based target picks focus nodes; one rule is deactivated."
     ),
+    example!(
+        "statements",
+        "Claims: SPARQL 1.2 and triple terms",
+        "RDF 1.2 reifiers and annotations, SPARQL 1.2 triple patterns, TRIPLE() and SUBJECT()."
+    ),
 ];
