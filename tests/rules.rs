@@ -12,7 +12,12 @@ fn example(name: &str, opts: &Options) -> Outcome {
     let shapes = load(&std::fs::read_to_string(format!("{dir}/rules.ttl")).unwrap());
     let out = infer(&data, &shapes, opts).unwrap();
     for r in &out.rules {
-        assert!(r.errors.is_empty(), "{name}: rule {} failed: {:?}", r.id, r.errors);
+        assert!(
+            r.errors.is_empty(),
+            "{name}: rule {} failed: {:?}",
+            r.id,
+            r.errors
+        );
     }
     out
 }
@@ -35,12 +40,36 @@ const RDF_TYPE: &str = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 fn rectangles_from_the_spec() {
     let out = example("rectangles", &Options::default());
     let ex = |l: &str| format!("{EX}{l}");
-    assert!(has(&out, &ex("SquareRectangle"), RDF_TYPE, iri(&ex("Square"))));
-    assert!(!has(&out, &ex("NonSquareRectangle"), RDF_TYPE, iri(&ex("Square"))));
-    assert!(has(&out, &ex("NonSquareRectangle"), &ex("area"), Literal::from(6)));
-    assert!(has(&out, &ex("SquareRectangle"), &ex("area"), Literal::from(16)));
+    assert!(has(
+        &out,
+        &ex("SquareRectangle"),
+        RDF_TYPE,
+        iri(&ex("Square"))
+    ));
+    assert!(!has(
+        &out,
+        &ex("NonSquareRectangle"),
+        RDF_TYPE,
+        iri(&ex("Square"))
+    ));
+    assert!(has(
+        &out,
+        &ex("NonSquareRectangle"),
+        &ex("area"),
+        Literal::from(6)
+    ));
+    assert!(has(
+        &out,
+        &ex("SquareRectangle"),
+        &ex("area"),
+        Literal::from(16)
+    ));
     // The invalid rectangle fails the sh:condition of both rules.
-    assert!(out.inferred.iter().all(|i| i.triple.subject.to_string() != format!("<{}>", ex("InvalidRectangle"))));
+    assert!(
+        out.inferred
+            .iter()
+            .all(|i| i.triple.subject.to_string() != format!("<{}>", ex("InvalidRectangle")))
+    );
     assert_eq!(out.inferred.len(), 3);
     assert!(out.stopped.is_none());
 }
@@ -78,13 +107,27 @@ fn aggregates_functions_and_order() {
     assert!(has(&out, &s("Order1"), &s("total"), dec("89.8")));
     assert!(has(&out, &s("Order2"), &s("total"), dec("219")));
     assert!(has(&out, &s("Order1"), &s("maxAmount"), dec("49.90")));
-    assert!(has(&out, &s("Order1"), &s("customerName"), Literal::new_simple_literal("Ann Peeters")));
-    assert!(has(&out, &s("Order2"), &s("customerName"), Literal::new_simple_literal("Ben Janssens")));
+    assert!(has(
+        &out,
+        &s("Order1"),
+        &s("customerName"),
+        Literal::new_simple_literal("Ann Peeters")
+    ));
+    assert!(has(
+        &out,
+        &s("Order2"),
+        &s("customerName"),
+        Literal::new_simple_literal("Ben Janssens")
+    ));
     assert!(has(&out, &s("Order2"), RDF_TYPE, iri(&s("BigOrder"))));
     assert!(!has(&out, &s("Order1"), RDF_TYPE, iri(&s("BigOrder"))));
     // sh:order made the line totals, the order total and the "big order"
     // check run in one round.
-    let total = out.rules.iter().position(|r| r.label.as_deref() == Some("total")).unwrap();
+    let total = out
+        .rules
+        .iter()
+        .position(|r| r.label.as_deref() == Some("total"))
+        .unwrap();
     let first_total = out.inferred.iter().find(|i| i.rule == total).unwrap();
     assert_eq!(first_total.iteration, 1);
 }
@@ -95,9 +138,18 @@ fn sparql_targets_and_deactivated_rules() {
     let g = |l: &str| format!("http://example.org/geo#{l}");
     assert!(has(&out, &g("Ghent"), RDF_TYPE, iri(&g("BigCity"))));
     assert!(!has(&out, &g("Leuven"), RDF_TYPE, iri(&g("BigCity"))));
-    assert!(has(&out, &g("Ghent"), "http://www.w3.org/2000/01/rdf-schema#label", Literal::new_simple_literal("Ghent")));
+    assert!(has(
+        &out,
+        &g("Ghent"),
+        "http://www.w3.org/2000/01/rdf-schema#label",
+        Literal::new_simple_literal("Ghent")
+    ));
     assert!(out.rules.iter().any(|r| r.deactivated && r.inferred == 0));
-    assert!(!out.inferred.iter().any(|i| i.triple.predicate.as_str() == g("hasBigCity")));
+    assert!(
+        !out.inferred
+            .iter()
+            .any(|i| i.triple.predicate.as_str() == g("hasBigCity"))
+    );
 }
 
 #[test]
@@ -147,7 +199,14 @@ fn blank_node_focus_nodes_in_sparql_rules() {
           sh:rule [ a sh:SPARQLRule ; sh:construct "PREFIX ex: <http://ex/> CONSTRUCT { $this ex:double ?d } WHERE { $this ex:v ?v . BIND (?v * 2 AS ?d) }" ] ."#,
     );
     let out = infer(&data, &shapes, &Options::default()).unwrap();
-    let mut doubles: Vec<Term> = out.inferred.iter().map(|i| i.triple.object.clone()).collect();
+    let mut doubles: Vec<Term> = out
+        .inferred
+        .iter()
+        .map(|i| i.triple.object.clone())
+        .collect();
     doubles.sort_by_key(Term::to_string);
-    assert_eq!(doubles, vec![Literal::from(4).into(), Literal::from(6).into()] as Vec<Term>);
+    assert_eq!(
+        doubles,
+        vec![Literal::from(4).into(), Literal::from(6).into()] as Vec<Term>
+    );
 }

@@ -1127,6 +1127,7 @@ dependencies = [
  "axum",
  "clap",
  "flate2",
+ "getrandom",
  "oxrdf",
  "oxrdfxml",
  "oxsdatatypes",

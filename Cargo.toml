@@ -28,6 +28,7 @@ spargebra = "0.4"
 sparesults = "0.3"
 oxsdatatypes = "0.2"
 regex = "1"
+getrandom = "0.3"
 
 [profile.release]
 lto = "thin"

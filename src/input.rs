@@ -61,7 +61,11 @@ pub struct SyntaxError {
 
 impl std::fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "line {}, column {}: {}", self.line, self.column, self.message)
+        write!(
+            f,
+            "line {}, column {}: {}",
+            self.line, self.column, self.message
+        )
     }
 }
 
@@ -99,7 +103,11 @@ pub fn parse_triples<R: BufRead, F: FnMut(Triple)>(
             for t in parser.by_ref() {
                 on_triple(t.map_err(turtle)?);
             }
-            prefixes.extend(parser.prefixes().map(|(k, v)| (k.to_string(), v.to_string())));
+            prefixes.extend(
+                parser
+                    .prefixes()
+                    .map(|(k, v)| (k.to_string(), v.to_string())),
+            );
         }
         InputFormat::Rdf => {
             for t in oxrdfxml::RdfXmlParser::new().for_reader(reader) {
@@ -112,7 +120,11 @@ pub fn parse_triples<R: BufRead, F: FnMut(Triple)>(
                 let q = q.map_err(turtle)?;
                 on_triple(Triple::new(q.subject, q.predicate, q.object));
             }
-            prefixes.extend(parser.prefixes().map(|(k, v)| (k.to_string(), v.to_string())));
+            prefixes.extend(
+                parser
+                    .prefixes()
+                    .map(|(k, v)| (k.to_string(), v.to_string())),
+            );
         }
         InputFormat::Nq => {
             for q in oxttl::NQuadsParser::new().for_reader(reader) {
@@ -207,7 +219,10 @@ mod tests {
     #[test]
     fn detects_extensions() {
         assert_eq!(detect_format(Path::new("a.ttl")).unwrap(), InputFormat::Ttl);
-        assert_eq!(detect_format(Path::new("a.nt.gz")).unwrap(), InputFormat::Nt);
+        assert_eq!(
+            detect_format(Path::new("a.nt.gz")).unwrap(),
+            InputFormat::Nt
+        );
         assert_eq!(detect_format(Path::new("a.owl")).unwrap(), InputFormat::Rdf);
         assert!(detect_format(Path::new("a.foo")).is_err());
     }

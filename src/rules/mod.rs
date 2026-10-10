@@ -16,8 +16,8 @@ use expr::{Context, Expr, cartesian};
 use oxrdf::vocab::{rdf, rdfs};
 use oxrdf::{Graph, NamedNode, NamedOrBlankNode, Term, Triple};
 use serde::Serialize;
-use sparql::{Answer, Store};
 use spargebra::Query;
+use sparql::{Answer, Store};
 use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::time::Instant;
@@ -113,7 +113,6 @@ enum Body {
 struct Rule {
     shape: Term,
     body: Option<Body>,
-    order: f64,
     deactivated: bool,
     conditions: Vec<Term>,
 }
@@ -196,7 +195,12 @@ pub fn infer(data: &Graph, shapes: &Graph, opts: &Options) -> Result<Outcome> {
 
 /// Run one rule on all its focus nodes, returning (focus node, triple)
 /// pairs. Errors are recorded on the rule rather than ending the run.
-fn run_rule(rule: &Rule, body: &Body, cx: &Context<'_>, info: &mut RuleInfo) -> Vec<(Term, Triple)> {
+fn run_rule(
+    rule: &Rule,
+    body: &Body,
+    cx: &Context<'_>,
+    info: &mut RuleInfo,
+) -> Vec<(Term, Triple)> {
     let mut out = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let mut focus_nodes = focus_nodes(&rule.shape, cx, &mut errors);
@@ -289,7 +293,9 @@ fn focus_nodes(shape: &Term, cx: &Context<'_>, errors: &mut Vec<String>) -> Vec<
     let mut seen: HashSet<Term> = out.iter().cloned().collect();
     for t in targets {
         let Some(text) = object(shapes, &t, sh::SELECT).and_then(|s| str_value(&s)) else {
-            errors.push(format!("target {t}: only SPARQL-based targets with sh:select are supported"));
+            errors.push(format!(
+                "target {t}: only SPARQL-based targets with sh:select are supported"
+            ));
             continue;
         };
         let result = sparql::parse(&text, &prefixes(shapes, &t))
@@ -321,27 +327,26 @@ fn number(t: &Term) -> Option<f64> {
 
 /// Find every `sh:rule` in the shapes graph, in execution order.
 fn collect(shapes: &Graph, warnings: &mut Vec<String>) -> (Vec<Rule>, Vec<RuleInfo>) {
-    let mut found: Vec<(Term, Term)> = shapes
+    let mut rules: Vec<(Rule, RuleInfo)> = shapes
         .triples_for_predicate(sh::RULE)
-        .map(|t| (t.subject.into_owned().into(), t.object.into_owned()))
+        .map(|t| parse_rule(shapes, t.subject.into_owned().into(), t.object.into_owned()))
         .collect();
-    // Shapes by name, then rules by name, so a run is repeatable; sh:order
-    // sorts on top of that.
-    found.sort_by_key(|(s, r)| (s.to_string(), r.to_string()));
-    let mut rules: Vec<(Rule, RuleInfo)> = Vec::new();
-    for (shape, id) in found {
-        rules.push(parse_rule(shapes, shape, id));
-    }
-    rules.sort_by(|a, b| a.0.order.partial_cmp(&b.0.order).unwrap_or(Ordering::Equal));
+    // By sh:order, then by shape and by rule label (or name), so a run is
+    // repeatable: blank node names change every time the shapes are parsed.
+    rules.sort_by(|(_, a), (_, b)| {
+        a.order
+            .partial_cmp(&b.order)
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| a.shape.cmp(&b.shape))
+            .then_with(|| sort_name(a).cmp(&sort_name(b)))
+    });
     let shape_count = rules
         .iter()
         .map(|r| &r.0.shape)
         .collect::<HashSet<_>>()
         .len();
     if rules.is_empty() {
-        warnings.push(
-            "the shapes graph has no sh:rule, so there is nothing to infer".to_string(),
-        );
+        warnings.push("the shapes graph has no sh:rule, so there is nothing to infer".to_string());
     } else if shape_count > 0 {
         for (rule, info) in &rules {
             if !has_targets(shapes, &rule.shape) && info.errors.is_empty() {
@@ -355,6 +360,21 @@ fn collect(shapes: &Graph, warnings: &mut Vec<String>) -> (Vec<Rule>, Vec<RuleIn
         warnings.dedup();
     }
     rules.into_iter().unzip()
+}
+
+fn sort_name(r: &RuleInfo) -> String {
+    match (&r.label, r.id.starts_with("_:")) {
+        (Some(l), _) => l.clone(),
+        (None, false) => r.id.clone(),
+        // Unlabelled blank nodes: by what they do.
+        (None, true) => format!(
+            "~{}{}{}{}",
+            r.subject.as_deref().unwrap_or(""),
+            r.predicate.as_deref().unwrap_or(""),
+            r.object.as_deref().unwrap_or(""),
+            r.construct.as_deref().unwrap_or("")
+        ),
+    }
 }
 
 fn has_targets(g: &Graph, shape: &Term) -> bool {
@@ -401,13 +421,15 @@ fn parse_rule(g: &Graph, shape: Term, id: Term) -> (Rule, RuleInfo) {
         errors: Vec::new(),
     };
     let body = if as_subject(&id).is_none() {
-        info.errors.push("a rule must be an IRI or a blank node".to_string());
+        info.errors
+            .push("a rule must be an IRI or a blank node".to_string());
         None
     } else if is_sparql {
         info.construct = text(sh::CONSTRUCT);
         match &info.construct {
             None => {
-                info.errors.push("a SPARQL rule needs sh:construct".to_string());
+                info.errors
+                    .push("a SPARQL rule needs sh:construct".to_string());
                 None
             }
             Some(q) => match sparql::parse(q, &prefixes(g, &id))
@@ -458,7 +480,6 @@ fn parse_rule(g: &Graph, shape: Term, id: Term) -> (Rule, RuleInfo) {
         conditions: objects(g, &id, sh::CONDITION),
         shape,
         body,
-        order: info.order,
         deactivated: info.deactivated,
     };
     (rule, info)

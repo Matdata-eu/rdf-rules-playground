@@ -90,9 +90,19 @@ pub struct ServeArgs {
     #[arg(long = "max-input-bytes", value_name = "BYTES", default_value_t = 2 * 1024 * 1024, env = "SHACL_AF_PLAYGROUND_MAX_INPUT_BYTES")]
     pub max_input_bytes: usize,
     /// In public mode: most triples per editor, and most inferred triples.
-    #[arg(long = "max-triples", value_name = "N", default_value_t = 50_000, env = "SHACL_AF_PLAYGROUND_MAX_TRIPLES")]
+    #[arg(
+        long = "max-triples",
+        value_name = "N",
+        default_value_t = 50_000,
+        env = "SHACL_AF_PLAYGROUND_MAX_TRIPLES"
+    )]
     pub max_triples: usize,
     /// In public mode: most seconds one run may take.
-    #[arg(long = "max-seconds", value_name = "S", default_value_t = 20, env = "SHACL_AF_PLAYGROUND_MAX_SECONDS")]
+    #[arg(
+        long = "max-seconds",
+        value_name = "S",
+        default_value_t = 20,
+        env = "SHACL_AF_PLAYGROUND_MAX_SECONDS"
+    )]
     pub max_seconds: u64,
 }

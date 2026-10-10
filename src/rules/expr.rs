@@ -10,10 +10,10 @@ use crate::validate::{Checker, ShaclPath, list, object, objects};
 use anyhow::{Context as _, Result, bail};
 use oxrdf::vocab::{rdf, xsd};
 use oxrdf::{Graph, Literal, Term};
+use oxsdatatypes::Decimal;
 use spargebra::Query;
 use std::cmp::Ordering;
 use std::collections::HashSet;
-use oxsdatatypes::Decimal;
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -29,7 +29,10 @@ pub enum Expr {
         nodes: Option<Box<Expr>>,
     },
     /// `[ sh:filterShape s ; sh:nodes e ]`: the nodes of `e` that conform to `s`.
-    Filter { shape: Term, nodes: Box<Expr> },
+    Filter {
+        shape: Term,
+        nodes: Box<Expr>,
+    },
     Intersection(Vec<Expr>),
     Union(Vec<Expr>),
     Count(Box<Expr>),
@@ -37,7 +40,10 @@ pub enum Expr {
     Max(Box<Expr>),
     Sum(Box<Expr>),
     /// `( fn arg1 arg2 … )`: a call of a `sh:SPARQLFunction`.
-    Function { function: Rc<Function>, args: Vec<Expr> },
+    Function {
+        function: Rc<Function>,
+        args: Vec<Expr>,
+    },
 }
 
 /// A `sh:SPARQLFunction` declared in the shapes graph.

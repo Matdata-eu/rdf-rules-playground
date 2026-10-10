@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SHACL-AF playground</title>
+    <link rel="icon" href="/assets/app/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/assets/vendor/tabulator/tabulator.min.css" />
+    <link rel="stylesheet" href="/assets/vendor/matgui/matgui.min.css" />
+    <link rel="stylesheet" href="/assets/app/styles.css" />
+  </head>
+  <body>
+    <header class="appbar">
+      <div class="brand">
+        <img class="logo" src="/assets/app/favicon.svg" alt="" />
+        <div class="brand-text">
+          <span class="brand-name">SHACL-AF playground <span id="version" class="version"></span></span>
+          <span class="brand-sub hide-mobile">Rules in, triples out</span>
+        </div>
+      </div>
+      <div class="appbar-actions">
+        <label class="select-wrap" title="Load an example">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v14H5zM9 9h6M9 12h6M9 15h3" /></svg>
+          <select id="examples" aria-label="Examples">
+            <option value="">Examples…</option>
+          </select>
+        </label>
+        <div class="menu">
+          <button id="options-btn" class="btn" aria-haspopup="true" aria-expanded="false" title="Run options">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
+            <span class="hide-mobile">Options</span>
+          </button>
+          <div id="options-menu" class="menu-pop options hidden" role="dialog" aria-label="Run options">
+            <label class="check"><input type="checkbox" id="opt-iterate" checked /> <span><b>Repeat until nothing new</b><small>Run the rules again while they infer new triples (a fixpoint). Off: every rule runs once.</small></span></label>
+            <label class="field"><span>Most rounds</span><input type="number" id="opt-max" min="1" max="1000" value="100" /></label>
+            <label class="check"><input type="checkbox" id="opt-shapes-in-data" /> <span><b>Read rules from the data too</b><small>Treat the data editor as part of the shapes graph, for files that keep both together.</small></span></label>
+            <label class="check"><input type="checkbox" id="opt-auto" checked /> <span><b>Run while typing</b><small>Re-run a moment after every change.</small></span></label>
+          </div>
+        </div>
+        <button id="share-btn" class="btn" title="Copy a link with both editors in it">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 005.66 0l3-3a4 4 0 00-5.66-5.66l-1 1M14 10a4 4 0 00-5.66 0l-3 3a4 4 0 005.66 5.66l1-1" /></svg>
+          <span class="hide-mobile">Share</span>
+        </button>
+        <button id="run-btn" class="btn primary" title="Run the rules (Ctrl+Enter)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+          <span>Run</span>
+        </button>
+        <button id="theme-btn" class="icon-btn" aria-label="Switch theme" title="Switch theme">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <nav class="mobile-switch only-mobile" role="tablist" aria-label="Panels">
+      <button data-pane="data" class="active">Data</button>
+      <button data-pane="shapes">Rules</button>
+      <button data-pane="results">Result <span id="mobile-count" class="pill"></span></button>
+    </nav>
+
+    <main class="workspace" id="workspace">
+      <section class="pane editors">
+        <div class="editor-card" id="data-card" data-pane="data">
+          <div class="editor-head">
+            <div class="editor-title">
+              <span class="dot data"></span>
+              <h2>Data graph</h2>
+              <span id="data-count" class="muted small"></span>
+            </div>
+            <div class="editor-tools">
+              <span id="data-error" class="err-chip hidden"></span>
+              <button class="icon-btn small" data-open="data" title="Open a Turtle file">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="editor-host" id="data-editor"></div>
+        </div>
+        <div class="splitter" id="splitter" title="Drag to resize"></div>
+        <div class="editor-card" id="shapes-card" data-pane="shapes">
+          <div class="editor-head">
+            <div class="editor-title">
+              <span class="dot shapes"></span>
+              <h2>Shapes &amp; rules</h2>
+              <span id="shapes-count" class="muted small"></span>
+            </div>
+            <div class="editor-tools">
+              <span id="shapes-error" class="err-chip hidden"></span>
+              <div class="menu">
+                <button class="icon-btn small" id="snippets-btn" title="Insert a rule template" aria-haspopup="true">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+                </button>
+                <div id="snippets-menu" class="menu-pop hidden" role="menu"></div>
+              </div>
+              <button class="icon-btn small" data-open="shapes" title="Open a Turtle file">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="editor-host" id="shapes-editor"></div>
+        </div>
+        <input type="file" id="file-input" accept=".ttl,.turtle,.shacl,text/turtle" hidden />
+      </section>
+
+      <div class="vsplitter hide-mobile" id="vsplitter" title="Drag to resize"></div>
+
+      <section class="pane results" data-pane="results">
+        <div class="summary" id="summary">
+          <div class="summary-main">
+            <div class="big"><span id="sum-inferred">–</span><small>inferred triples</small></div>
+            <div class="stat"><span id="sum-rules">–</span><small>rules</small></div>
+            <div class="stat"><span id="sum-rounds">–</span><small>rounds</small></div>
+            <div class="stat"><span id="sum-time">–</span><small>ms</small></div>
+          </div>
+          <div class="status" id="status"><span class="spinner hidden" id="spinner"></span><span id="status-text">Ready</span></div>
+        </div>
+        <div id="notices" class="notices"></div>
+        <nav class="tabs" role="tablist" aria-label="Result views">
+          <button data-tab="triples" class="active" role="tab">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg><span>Inferred</span>
+          </button>
+          <button data-tab="rules" role="tab">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h6v6H4zM14 12h6v6h-6zM10 9h4v6" /></svg><span>Rules</span><span id="rules-badge" class="pill hidden"></span>
+          </button>
+          <button data-tab="turtle" role="tab">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h7l5 5v11H7zM14 4v5h5" /></svg><span>Turtle</span>
+          </button>
+          <button data-tab="sparql" role="tab">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5" /></svg><span>SPARQL</span>
+          </button>
+        </nav>
+
+        <div class="tab-body" id="tab-triples">
+          <div class="toolbar">
+            <input type="search" id="triple-filter" placeholder="Filter triples…" aria-label="Filter triples" />
+            <select id="rule-filter" aria-label="Filter by rule"><option value="">All rules</option></select>
+            <label class="check inline"><input type="checkbox" id="group-by-rule" /> Group by rule</label>
+          </div>
+          <div id="triples-table" class="table-host"></div>
+          <div id="triples-empty" class="empty hidden"></div>
+        </div>
+
+        <div class="tab-body hidden" id="tab-rules">
+          <p class="hint">Rules in the order they run: by <code>sh:order</code>, then by shape and rule name.</p>
+          <div id="rules-list" class="rules-list"></div>
+        </div>
+
+        <div class="tab-body hidden" id="tab-turtle">
+          <div class="toolbar">
+            <div class="seg" role="group" aria-label="What to show">
+              <button data-show="inferred" class="active">Inferred only</button>
+              <button data-show="all">Data + inferred</button>
+            </div>
+            <span class="grow"></span>
+            <button class="btn small" id="copy-turtle">Copy</button>
+            <div class="menu">
+              <button class="btn small" id="download-btn" aria-haspopup="true">Download</button>
+              <div id="download-menu" class="menu-pop right hidden" role="menu">
+                <button data-dl="inferred:ttl">Inferred triples (Turtle)</button>
+                <button data-dl="inferred:nt">Inferred triples (N-Triples)</button>
+                <button data-dl="all:ttl">Data + inferred (Turtle)</button>
+                <button data-dl="all:nt">Data + inferred (N-Triples)</button>
+              </div>
+            </div>
+          </div>
+          <div id="turtle-view" class="editor-host readonly"></div>
+        </div>
+
+        <div class="tab-body hidden" id="tab-sparql">
+          <p class="hint">Query the data with everything inferred. The shapes graph is the named graph <code>&lt;urn:x-shacl-af-playground:shapes-graph&gt;</code>. Each run gets a fresh endpoint.</p>
+          <div id="matgui" class="matgui-host"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+
+    <script src="/assets/vendor/codemirror/codemirror.min.js"></script>
+    <script src="/assets/vendor/tabulator/tabulator.min.js"></script>
+    <script src="/assets/vendor/matgui/matgui.min.js"></script>
+    <script src="/assets/app/editor.js"></script>
+    <script src="/assets/app/app.js"></script>
+  </body>
+</html>

@@ -2,10 +2,10 @@
 //! `sh:SPARQLFunction` bodies and `sh:SPARQLTarget` selections, evaluated
 //! with Oxigraph's SPARQL engine against the data graph as it grows.
 
+use crate::validate::sparql::{project, substitute_named, substitute_pattern, substitute_term};
 use anyhow::{Context, Result, bail};
 use oxrdf::{Dataset, GraphNameRef, NamedNode, QuadRef, Term, Triple, Variable};
 use spareval::{QueryEvaluationError, QueryEvaluator, QueryResults};
-use crate::validate::sparql::{project, substitute_named, substitute_pattern, substitute_term};
 use spargebra::algebra::Expression;
 use spargebra::{Query, SparqlParser};
 use std::collections::HashMap;
