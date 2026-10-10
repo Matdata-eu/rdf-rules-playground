@@ -583,6 +583,92 @@ pre.query {
   max-width: calc(100% - 32px);
 }
 
+/* ---------- data held by the server ---------- */
+
+.data-server { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.data-server-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 14px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.data-server-bar svg { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--data); stroke-width: 1.8; }
+.data-server-bar b { color: var(--text); }
+.data-server-bar .grow { flex: 1; }
+.matgui-host.compact { min-height: 0; overflow: auto; padding: 6px 8px; }
+.menu-foot { border-top: 1px solid var(--border); margin-top: 6px; padding: 8px 4px 2px; font-size: 12.5px; }
+.menu-foot a { color: var(--accent); text-decoration: none; }
+.menu-foot a:hover { text-decoration: underline; }
+
+/* ---------- collapse and maximize ---------- */
+
+.pane-ctl { display: flex; gap: 2px; flex: none; }
+.summary .pane-ctl { margin-left: 4px; align-self: flex-start; }
+.pane-ctl svg path { transition: transform 0.15s; transform-origin: center; }
+.pane-ctl .i-restore { display: none; }
+.results-bar { display: none; }
+
+/* Desktop only: phones show one section at a time already. */
+@media (min-width: 861px) {
+  .workspace.collapse-data .editors { grid-template-rows: auto 8px minmax(80px, 1fr); }
+  .workspace.collapse-shapes .editors { grid-template-rows: minmax(80px, 1fr) 8px auto; }
+  .workspace.collapse-data.collapse-shapes .editors { grid-template-rows: auto 8px auto; align-content: start; }
+  .workspace.collapse-data #data-card > :not(.editor-head),
+  .workspace.collapse-shapes #shapes-card > :not(.editor-head) { display: none !important; }
+  .workspace.collapse-data #data-card .editor-head,
+  .workspace.collapse-shapes #shapes-card .editor-head { border-bottom: 0; }
+  .workspace.collapse-data .splitter,
+  .workspace.collapse-shapes .splitter { pointer-events: none; }
+  .workspace.collapse-data [data-collapse="data"] svg path,
+  .workspace.collapse-shapes [data-collapse="shapes"] svg path { transform: rotate(180deg); }
+
+  .workspace.collapse-results { grid-template-columns: minmax(0, 1fr) 6px 40px; }
+  .workspace.collapse-results .results > :not(.results-bar) { display: none !important; }
+  .workspace.collapse-results .vsplitter { pointer-events: none; }
+  .workspace.collapse-results .results-bar {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .workspace.collapse-results .results-bar:hover { color: var(--text); background: var(--surface-2); }
+  .results-bar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+  .results-bar span { writing-mode: vertical-rl; }
+  .results-bar b { color: var(--accent); }
+
+  .workspace[data-max] { grid-template-columns: minmax(0, 1fr); }
+  .workspace[data-max] .vsplitter,
+  .workspace[data-max] .splitter,
+  .workspace[data-max="results"] .editors,
+  .workspace[data-max="data"] .results,
+  .workspace[data-max="data"] #shapes-card,
+  .workspace[data-max="shapes"] .results,
+  .workspace[data-max="shapes"] #data-card { display: none; }
+  .workspace[data-max="data"] .editors,
+  .workspace[data-max="shapes"] .editors { grid-template-rows: minmax(0, 1fr); }
+  .workspace[data-max] [data-collapse] { display: none; }
+  .workspace[data-max="data"] [data-maximize="data"] .i-max,
+  .workspace[data-max="shapes"] [data-maximize="shapes"] .i-max,
+  .workspace[data-max="results"] [data-maximize="results"] .i-max { display: none; }
+  .workspace[data-max="data"] [data-maximize="data"] .i-restore,
+  .workspace[data-max="shapes"] [data-maximize="shapes"] .i-restore,
+  .workspace[data-max="results"] [data-maximize="results"] .i-restore { display: inline; }
+}
+
 /* ---------- phones and small tablets ---------- */
 
 @media (max-width: 860px) {

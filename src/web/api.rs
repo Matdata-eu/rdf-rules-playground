@@ -1,10 +1,9 @@
 //! HTTP routes.
 
 use super::assets::{self, EXAMPLES};
-use super::{AppState, Run, new_id};
-use crate::input::{SyntaxError, merge_prefixes, parse_turtle};
+use super::{AppState, Run, ServerData};
+use crate::input::{SyntaxError, load_bytes, merge_prefixes, parse_turtle};
 use crate::output;
-use crate::rules::sparql::SHAPES_GRAPH;
 use crate::rules::{self, Options, RuleInfo};
 use axum::Json;
 use axum::Router;
@@ -13,12 +12,17 @@ use axum::extract::{DefaultBodyLimit, Path, Query, State};
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{Html, IntoResponse, Response};
 use axum::routing::{get, post};
-use oxrdf::{Dataset, Graph, GraphNameRef, NamedNode, QuadRef};
+use oxrdf::{Dataset, Graph};
 use serde::{Deserialize, Serialize};
 use sparesults::{QueryResultsFormat, QueryResultsSerializer};
 use spareval::{QueryEvaluator, QueryResults};
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Instant;
+
+/// Most inferred triples listed in a response; the rest are only counted.
+/// Downloads and the SPARQL endpoint still have all of them.
+const MAX_ROWS: usize = 20_000;
 
 pub fn router(state: AppState) -> Router {
     let body_limit = state
@@ -35,7 +39,16 @@ pub fn router(state: AppState) -> Router {
             "/api/infer",
             post(infer).layer(DefaultBodyLimit::max(body_limit)),
         )
+        .route(
+            "/api/data",
+            post(upload).layer(DefaultBodyLimit::max(body_limit)),
+        )
+        .route(
+            "/api/data/:id/sparql",
+            get(data_sparql_get).post(data_sparql_post),
+        )
         .route("/api/runs/:id/sparql", get(sparql_get).post(sparql_post))
+        .route("/licenses", get(licenses))
         .route("/api/runs/:id/download", get(download))
         .with_state(state)
 }
@@ -61,13 +74,44 @@ async fn asset(Path(path): Path<String>) -> Response {
     }
 }
 
+async fn licenses() -> Response {
+    (
+        [(header::CONTENT_TYPE, "text/plain; charset=utf-8")],
+        assets::THIRD_PARTY_NOTICES,
+    )
+        .into_response()
+}
+
 #[derive(Serialize)]
 struct Meta {
     version: &'static str,
     public: bool,
     max_input_bytes: Option<usize>,
     max_iterations: Option<usize>,
+    max_editor_triples: usize,
     preload: Option<Preload>,
+    /// Data files given on the command line, too big for the editor.
+    server_data: Option<DataInfo>,
+}
+
+/// A data graph the server holds, as the playground shows it.
+#[derive(Serialize)]
+struct DataInfo {
+    id: String,
+    files: Vec<String>,
+    triples: usize,
+    prefixes: Vec<(String, String)>,
+}
+
+impl From<&ServerData> for DataInfo {
+    fn from(d: &ServerData) -> Self {
+        Self {
+            id: d.id.clone(),
+            files: d.files.clone(),
+            triples: d.graph.len(),
+            prefixes: d.prefixes.clone(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -82,6 +126,8 @@ async fn meta(State(s): State<AppState>) -> Json<Meta> {
         public: s.limits.is_some(),
         max_input_bytes: s.limits.as_ref().map(|l| l.max_input_bytes),
         max_iterations: s.limits.as_ref().map(|l| l.max_iterations),
+        max_editor_triples: s.max_editor_triples,
+        server_data: s.startup_data.as_deref().map(DataInfo::from),
         preload: s.preload.as_ref().map(|(d, sh)| Preload {
             data: d.clone(),
             shapes: sh.clone(),
@@ -114,9 +160,62 @@ async fn examples() -> Json<Vec<ExampleDto>> {
 }
 
 #[derive(Deserialize)]
+struct UploadParams {
+    /// The file name, which tells its syntax.
+    name: String,
+}
+
+/// What an opened file becomes: editor text, or a graph the server keeps.
+#[derive(Serialize)]
+struct UploadResponse {
+    text: Option<String>,
+    data: Option<DataInfo>,
+}
+
+/// `POST /api/data?name=FILE`: parse a file opened in the browser. Small
+/// graphs come back as Turtle for the editor; bigger ones stay on the server.
+async fn upload(State(s): State<AppState>, Query(p): Query<UploadParams>, body: Bytes) -> Response {
+    let Ok(_permit) = s.jobs.clone().acquire_owned().await else {
+        return (StatusCode::SERVICE_UNAVAILABLE, "shutting down").into_response();
+    };
+    let state = s.clone();
+    let task = tokio::task::spawn_blocking(move || {
+        let mut g = Graph::new();
+        let mut prefixes = Vec::new();
+        let max_triples = state.limits.as_ref().map(|l| l.max_triples);
+        load_bytes(&p.name, &body, &mut g, &mut prefixes, max_triples)
+            .map_err(|e| format!("{e:#}"))?;
+        if g.len() <= state.max_editor_triples {
+            return Ok::<_, String>(UploadResponse {
+                text: Some(output::turtle(&g, &prefixes)),
+                data: None,
+            });
+        }
+        let data = state.keep_upload(ServerData::new(vec![p.name], g, prefixes));
+        Ok(UploadResponse {
+            text: None,
+            data: Some(DataInfo::from(&*data)),
+        })
+    });
+    match task.await {
+        Ok(Ok(r)) => Json(r).into_response(),
+        Ok(Err(e)) => (StatusCode::BAD_REQUEST, e).into_response(),
+        Err(_) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "reading the file crashed",
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InferRequest {
+    /// The data editor's text; ignored when `data_id` is given.
+    #[serde(default)]
     data: String,
+    /// A data graph the server holds, instead of the editor's text.
+    data_id: Option<String>,
     shapes: String,
     /// Also read rules from the data editor.
     #[serde(default)]
@@ -156,10 +255,13 @@ struct InferResponse {
     warnings: Vec<String>,
     millis: u128,
     rules: Vec<RuleInfo>,
+    /// The first [`MAX_ROWS`] inferred triples.
     inferred: Vec<InferredDto>,
+    /// How many triples were inferred in all.
+    inferred_total: usize,
     prefixes: Vec<(String, String)>,
-    /// The inferred triples as Turtle.
-    turtle: String,
+    /// The inferred triples as Turtle, unless there are more than [`MAX_ROWS`].
+    turtle: Option<String>,
     data_triples: usize,
     shapes_triples: usize,
 }
@@ -190,7 +292,18 @@ async fn infer(State(s): State<AppState>, Json(req): Json<InferRequest>) -> Resp
 fn run_infer(s: &AppState, req: InferRequest) -> InferResponse {
     let max_triples = s.limits.as_ref().map(|l| l.max_triples);
     let mut out = InferResponse::default();
-    let data = parse_turtle(&req.data, max_triples);
+    let data = match &req.data_id {
+        Some(id) => match s.data(id) {
+            Some(d) => Ok((d.graph.clone(), d.prefixes.clone())),
+            None => {
+                out.error = Some(
+                    "the server no longer holds this data graph; open the file again".to_string(),
+                );
+                return out;
+            }
+        },
+        None => parse_turtle(&req.data, max_triples).map(|(g, p)| (Arc::new(g), p)),
+    };
     let shapes = parse_turtle(&req.shapes, max_triples);
     let (data, shapes) = match (data, shapes) {
         (Ok(d), Ok(sh)) => (d, sh),
@@ -228,10 +341,14 @@ fn run_infer(s: &AppState, req: InferRequest) -> InferResponse {
         }
     };
     let inferred: Graph = outcome.inferred.iter().map(|i| i.triple.clone()).collect();
-    out.turtle = output::turtle(&inferred, &prefixes);
+    out.inferred_total = outcome.inferred.len();
+    if inferred.len() <= MAX_ROWS {
+        out.turtle = Some(output::turtle(&inferred, &prefixes));
+    }
     out.inferred = outcome
         .inferred
         .iter()
+        .take(MAX_ROWS)
         .map(|i| InferredDto {
             s: i.triple.subject.to_string(),
             p: i.triple.predicate.to_string(),
@@ -246,13 +363,8 @@ fn run_infer(s: &AppState, req: InferRequest) -> InferResponse {
     out.warnings = outcome.warnings;
     out.millis = outcome.millis;
     out.rules = outcome.rules;
-    let run = s.keep(Run {
-        id: new_id(),
-        all: outcome.graph,
-        inferred,
-        shapes,
-        prefixes: prefixes.clone(),
-    });
+    drop(outcome.graph);
+    let run = s.keep(Run::new(data, inferred, shapes, prefixes.clone()));
     out.run = Some(run.id.clone());
     out.prefixes = prefixes;
     out
@@ -280,7 +392,13 @@ async fn download(
     };
     let all = p.what.as_deref() == Some("all");
     let nt = p.format.as_deref() == Some("nt");
-    let g = if all { &run.all } else { &run.inferred };
+    let all_graph;
+    let g = if all {
+        all_graph = run.all();
+        &all_graph
+    } else {
+        &run.inferred
+    };
     let (body, mime, ext) = if nt {
         (output::ntriples(g), "application/n-triples", "nt")
     } else {
@@ -304,16 +422,19 @@ async fn download(
         .into_response()
 }
 
+/// What a SPARQL endpoint queries: a run's result, or a data graph.
+enum Target {
+    Run(String),
+    Data(String),
+}
+
 async fn sparql_get(
     State(s): State<AppState>,
     Path(id): Path<String>,
     headers: HeaderMap,
     Query(params): Query<HashMap<String, String>>,
 ) -> Response {
-    match params.get("query") {
-        Some(q) => sparql(s, id, q.clone(), headers).await,
-        None => (StatusCode::BAD_REQUEST, "missing query parameter").into_response(),
-    }
+    query_get(s, Target::Run(id), headers, params).await
 }
 
 async fn sparql_post(
@@ -322,6 +443,40 @@ async fn sparql_post(
     headers: HeaderMap,
     body: Bytes,
 ) -> Response {
+    query_post(s, Target::Run(id), headers, body).await
+}
+
+async fn data_sparql_get(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    Query(params): Query<HashMap<String, String>>,
+) -> Response {
+    query_get(s, Target::Data(id), headers, params).await
+}
+
+async fn data_sparql_post(
+    State(s): State<AppState>,
+    Path(id): Path<String>,
+    headers: HeaderMap,
+    body: Bytes,
+) -> Response {
+    query_post(s, Target::Data(id), headers, body).await
+}
+
+async fn query_get(
+    s: AppState,
+    target: Target,
+    headers: HeaderMap,
+    params: HashMap<String, String>,
+) -> Response {
+    match params.get("query") {
+        Some(q) => sparql(s, target, q.clone(), headers).await,
+        None => (StatusCode::BAD_REQUEST, "missing query parameter").into_response(),
+    }
+}
+
+async fn query_post(s: AppState, target: Target, headers: HeaderMap, body: Bytes) -> Response {
     let content_type = headers
         .get(header::CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
@@ -338,7 +493,7 @@ async fn sparql_post(
             }
         }
     };
-    sparql(s, id, query, headers).await
+    sparql(s, target, query, headers).await
 }
 
 /// Decode an `application/x-www-form-urlencoded` body.
@@ -373,13 +528,29 @@ fn form_pairs(body: &[u8]) -> Vec<(String, String)> {
         .collect()
 }
 
-async fn sparql(s: AppState, id: String, query: String, headers: HeaderMap) -> Response {
-    let Some(run) = s.run(&id) else {
-        return (
-            StatusCode::NOT_FOUND,
-            "this run has expired; run the rules again to query the result",
-        )
-            .into_response();
+async fn sparql(s: AppState, target: Target, query: String, headers: HeaderMap) -> Response {
+    let found = match &target {
+        Target::Run(id) => s.run(id).map(|r| {
+            let prefixes = r.prefixes.clone();
+            (
+                Box::new(move || r.dataset()) as Box<dyn FnOnce() -> Arc<Dataset> + Send>,
+                prefixes,
+            )
+        }),
+        Target::Data(id) => s.data(id).map(|d| {
+            let prefixes = d.prefixes.clone();
+            (
+                Box::new(move || d.dataset()) as Box<dyn FnOnce() -> Arc<Dataset> + Send>,
+                prefixes,
+            )
+        }),
+    };
+    let Some((dataset, prefixes)) = found else {
+        let msg = match target {
+            Target::Run(_) => "this run has expired; run the rules again to query the result",
+            Target::Data(_) => "the server no longer holds this data graph; open the file again",
+        };
+        return (StatusCode::NOT_FOUND, msg).into_response();
     };
     let accept = headers
         .get(header::ACCEPT)
@@ -390,7 +561,8 @@ async fn sparql(s: AppState, id: String, query: String, headers: HeaderMap) -> R
     let Ok(_permit) = s.jobs.clone().acquire_owned().await else {
         return (StatusCode::SERVICE_UNAVAILABLE, "shutting down").into_response();
     };
-    let task = tokio::task::spawn_blocking(move || evaluate(&run, &query, &accept));
+    let task =
+        tokio::task::spawn_blocking(move || evaluate(&dataset(), &prefixes, &query, &accept));
     let result = match deadline {
         Some(d) => match tokio::time::timeout(d, task).await {
             Ok(r) => r,
@@ -408,28 +580,20 @@ async fn sparql(s: AppState, id: String, query: String, headers: HeaderMap) -> R
     }
 }
 
-/// Evaluate a query over the data with its inferences (default graph) and
-/// the shapes graph (a named graph).
-fn evaluate(run: &Run, query: &str, accept: &str) -> Result<(String, Vec<u8>), String> {
+/// Evaluate a query: over a run, the data with its inferences is the default
+/// graph and the shapes graph a named graph.
+fn evaluate(
+    ds: &Dataset,
+    prefixes: &[(String, String)],
+    query: &str,
+    accept: &str,
+) -> Result<(String, Vec<u8>), String> {
     let q = spargebra::SparqlParser::new()
         .parse_query(query)
         .map_err(|e| e.to_string())?;
-    let mut ds = Dataset::new();
-    for t in run.all.iter() {
-        ds.insert(QuadRef::new(
-            t.subject,
-            t.predicate,
-            t.object,
-            GraphNameRef::DefaultGraph,
-        ));
-    }
-    let name = NamedNode::new_unchecked(SHAPES_GRAPH);
-    for t in run.shapes.iter() {
-        ds.insert(QuadRef::new(t.subject, t.predicate, t.object, &name));
-    }
     let results = QueryEvaluator::new()
         .prepare(&q)
-        .execute(&ds)
+        .execute(ds)
         .map_err(|e| e.to_string())?;
     let err = |e: std::io::Error| e.to_string();
     let (format, mime) = if accept.contains("sparql-results+xml") {
@@ -471,7 +635,7 @@ fn evaluate(run: &Run, query: &str, accept: &str) -> Result<(String, Vec<u8>), S
             } else {
                 Ok((
                     "text/turtle".to_string(),
-                    output::turtle(&g, &run.prefixes).into_bytes(),
+                    output::turtle(&g, prefixes).into_bytes(),
                 ))
             }
         }

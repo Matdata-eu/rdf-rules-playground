@@ -7,6 +7,7 @@
   const $ = (id) => document.getElementById(id);
   const STORE_KEY = "shacl-af-playground";
   const THEME_KEY = "shacl-af-playground-theme";
+  const LAYOUT_KEY = "shacl-af-playground-layout";
   const WELL_KNOWN = [
     ["rdf", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"],
     ["rdfs", "http://www.w3.org/2000/01/rdf-schema#"],
@@ -34,6 +35,14 @@
     allTurtle: null,
     yasgui: null,
     tab: "triples",
+    // A data graph the server holds ({ id, files, triples, prefixes }), and
+    // whether runs use it instead of the data editor.
+    serverData: null,
+    useServer: false,
+    dataYasgui: null,
+    // Sections collapsed to their header, and the maximized one.
+    collapsed: new Set(),
+    maximized: null,
   };
 
   // ---------- small helpers ----------
@@ -58,7 +67,7 @@
   }
 
   function plural(n, one, many) {
-    return `${n} ${n === 1 ? one : many || one + "s"}`;
+    return `${n.toLocaleString()} ${n === 1 ? one : many || one + "s"}`;
   }
 
   // ---------- terms ----------
@@ -151,7 +160,7 @@
   function applyTheme(t) {
     if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
     else document.documentElement.removeAttribute("data-theme");
-    if (state.yasgui && state.yasgui.themeManager) state.yasgui.themeManager.setTheme(currentTheme());
+    for (const y of [state.yasgui, state.dataYasgui]) if (y && y.themeManager) y.themeManager.setTheme(currentTheme());
   }
 
   // ---------- sharing and saving ----------
@@ -189,7 +198,11 @@
     history.replaceState(null, "", `#${hash}`);
     try {
       await navigator.clipboard.writeText(url);
-      toast("Link copied: it holds both editors and the options");
+      toast(
+        state.useServer
+          ? "Link copied: it holds the rules and options, but not the data graph the server holds"
+          : "Link copied: it holds both editors and the options",
+      );
     } catch (_) {
       toast("Link is in the address bar");
     }
@@ -252,7 +265,8 @@
     const seq = ++state.seq;
     setBusy(true, "Running…");
     const body = {
-      data: state.data.value,
+      data: state.useServer ? "" : state.data.value,
+      dataId: state.useServer ? state.serverData.id : null,
       shapes: state.shapes.value,
       shapesInData: $("opt-shapes-in-data").checked,
       iterate: $("opt-iterate").checked,
@@ -338,15 +352,26 @@
 
     $("data-count").textContent = plural(res.data_triples, "triple");
     $("shapes-count").textContent = plural(res.shapes_triples, "triple");
-    $("sum-inferred").textContent = res.inferred.length;
+    $("sum-inferred").textContent = res.inferred_total;
+    $("bar-count").textContent = res.inferred_total;
     $("sum-rules").textContent = res.rules.filter((r) => !r.deactivated).length;
     $("sum-rounds").textContent = res.iterations;
     $("sum-time").textContent = res.millis;
-    $("mobile-count").textContent = res.inferred.length;
+    $("mobile-count").textContent = res.inferred_total;
+    // The data with everything inferred is only shown when the editor could hold it.
+    const allTooBig = res.data_triples > ((state.meta && state.meta.max_editor_triples) || 20000);
+    $("show-all").disabled = allTooBig;
+    $("show-all").title = allTooBig ? "Too big to show here; use Download" : "";
+    if (allTooBig && state.turtleShow === "all") setTurtleShow("inferred");
     setBusy(false, `Ran at ${new Date().toLocaleTimeString()}`);
 
     const notices = [];
     if (res.stopped) notices.push({ kind: "error", text: res.stopped });
+    if (res.inferred_total > res.inferred.length)
+      notices.push({
+        kind: "warn",
+        text: `The table lists the first ${res.inferred.length.toLocaleString()} of ${res.inferred_total.toLocaleString()} inferred triples. Download them, or query them all in the SPARQL tab.`,
+      });
     for (const w of res.warnings) notices.push({ kind: "warn", html: linkTerms(w) });
     const failed = res.rules.filter((r) => r.errors.length);
     if (failed.length)
@@ -532,6 +557,12 @@
     return lines.map((l) => l.slice(cut)).join("\n");
   }
 
+  function setTurtleShow(what) {
+    state.turtleShow = what;
+    document.querySelectorAll("[data-show]").forEach((x) => x.classList.toggle("active", x.dataset.show === what));
+    renderTurtle();
+  }
+
   function renderTurtle() {
     const res = state.result;
     if (!state.turtle) state.turtle = new window.PlaygroundEditor($("turtle-view"), { readOnly: true });
@@ -550,7 +581,11 @@
         state.turtle.value = state.allTurtle;
       }
     } else {
-      state.turtle.value = res.inferred.length ? res.turtle : "# nothing inferred";
+      state.turtle.value = !res.inferred_total
+        ? "# nothing inferred"
+        : res.turtle !== null && res.turtle !== undefined
+          ? res.turtle
+          : `# ${res.inferred_total} triples inferred, too many to show here: use Download`;
     }
   }
 
@@ -561,19 +596,23 @@
   }
 
   function prefixBlock() {
-    return state.prefixes.map(([n, iri]) => `PREFIX ${n}: <${iri}>`).join("\n");
+    return prefixBlockOf(state.prefixes);
   }
 
-  function ensureYasgui() {
-    if (state.yasgui) return state.yasgui;
+  function prefixBlockOf(prefixes) {
+    return prefixes.map(([n, iri]) => `PREFIX ${n}: <${iri}>`).join("\n");
+  }
+
+  /** A MatGUI instance in `host`, or null when it could not be loaded. */
+  function newYasgui(host, endpoint, height) {
     const Y = window.Yasgui && (window.Yasgui.default || window.Yasgui);
     if (typeof Y !== "function") {
-      $("matgui").innerHTML = '<div class="empty">The SPARQL editor could not be loaded.</div>';
+      host.innerHTML = '<div class="empty">The SPARQL editor could not be loaded.</div>';
       return null;
     }
-    $("matgui").innerHTML = "";
-    state.yasgui = new Y($("matgui"), {
-      requestConfig: { endpoint: endpointUrl(), method: "POST" },
+    host.innerHTML = "";
+    return new Y(host, {
+      requestConfig: { endpoint, method: "POST" },
       theme: currentTheme(),
       showThemeToggle: false,
       showSnippetsBar: false,
@@ -583,10 +622,15 @@
       populateFromUrl: false,
       autoAddOnInit: false,
       endpointCatalogueOptions: { getData: () => [] },
-      yasqe: { resizeable: true, editorHeight: "240px" },
+      yasqe: { resizeable: true, editorHeight: height },
       yasr: { persistenceId: null },
     });
-    openQuery("Inferred", `${prefixBlock()}\n\nSELECT ?s ?p ?o\nWHERE {\n  ?s ?p ?o .\n}\nLIMIT 100`, false);
+  }
+
+  function ensureYasgui() {
+    if (state.yasgui) return state.yasgui;
+    state.yasgui = newYasgui($("matgui"), endpointUrl(), "240px");
+    if (state.yasgui) openQuery("Inferred", `${prefixBlock()}\n\nSELECT ?s ?p ?o\nWHERE {\n  ?s ?p ?o .\n}\nLIMIT 100`, false);
     return state.yasgui;
   }
 
@@ -630,6 +674,86 @@
     q = `# ${ruleName(r)}: $this is a free variable here, so the query runs for every node,\n# not only the rule's focus nodes.\n${hasPrefix ? "" : prefixBlock() + "\n\n"}${q}`;
     switchTab("sparql");
     openQuery(ruleName(r).slice(0, 30), q, true);
+  }
+
+  // ---------- data the server holds ----------
+
+  function dataEndpoint() {
+    return state.serverData ? `${location.origin}/api/data/${state.serverData.id}/sparql` : "";
+  }
+
+  /** Remember a data graph the server holds, and run the rules on it. */
+  function setServerData(info) {
+    state.serverData = info;
+    if (state.dataYasgui) {
+      const y = state.dataYasgui;
+      y.config.requestConfig = { ...y.config.requestConfig, endpoint: dataEndpoint() };
+      for (const id of Object.keys(y._tabs || {})) {
+        const tab = y.getTab(id);
+        if (tab && typeof tab.setEndpoint === "function") tab.setEndpoint(dataEndpoint());
+      }
+    }
+    useServerData(true);
+  }
+
+  /** Switch the data card between the editor and the query view of the server's data. */
+  function useServerData(on) {
+    state.useServer = !!(on && state.serverData);
+    const d = state.serverData;
+    $("data-editor").classList.toggle("hidden", state.useServer);
+    $("data-server").classList.toggle("hidden", !state.useServer);
+    $("data-to-server").classList.toggle("hidden", state.useServer || !d);
+    $("data-error").classList.add("hidden");
+    if (!state.useServer) return;
+    $("data-server-text").innerHTML = `<b>${d.triples.toLocaleString()}</b> triples from ${d.files
+      .map((f) => `<b>${esc(f)}</b>`)
+      .join(", ")}, too many for the editor. Query them here; the rules run on all of them.`;
+    $("data-server-text").title = d.files.join("\n");
+    if (!state.dataYasgui) {
+      state.dataYasgui = newYasgui($("data-matgui"), dataEndpoint(), "160px");
+      if (state.dataYasgui) {
+        const prefixes = (d.prefixes || []).slice();
+        for (const p of WELL_KNOWN) if (!prefixes.some(([n]) => n === p[0])) prefixes.push(p);
+        const tab = state.dataYasgui.addTab(true, {
+          name: "Data",
+          yasqe: { value: `${prefixBlockOf(prefixes)}\n\nSELECT ?class (COUNT(?s) AS ?instances)\nWHERE {\n  ?s a ?class .\n}\nGROUP BY ?class\nORDER BY DESC(?instances)\nLIMIT 100` },
+          requestConfig: { ...state.dataYasgui.config.requestConfig, endpoint: dataEndpoint() },
+        });
+        void tab;
+      }
+    }
+  }
+
+  // ---------- collapse and maximize ----------
+
+  function applyLayout() {
+    const ws = $("workspace");
+    for (const name of ["data", "shapes", "results"])
+      ws.classList.toggle(`collapse-${name}`, !state.maximized && state.collapsed.has(name));
+    if (state.maximized) ws.dataset.max = state.maximized;
+    else delete ws.dataset.max;
+    document.querySelectorAll(".pane-ctl button").forEach((b) => {
+      const label = b.getAttribute("aria-label").replace(/^\w+ /, "");
+      b.title = b.dataset.maximize
+        ? state.maximized === b.dataset.maximize
+          ? "Restore the layout (Esc)"
+          : `Maximize ${label} (Esc restores)`
+        : `${state.collapsed.has(b.dataset.collapse) ? "Expand" : "Collapse"} ${label}`;
+    });
+    storage((ls) => ls.setItem(LAYOUT_KEY, JSON.stringify({ collapsed: [...state.collapsed], maximized: state.maximized })));
+    if (state.table) setTimeout(() => state.table.redraw(), 0);
+  }
+
+  function toggleCollapse(name) {
+    if (state.collapsed.has(name)) state.collapsed.delete(name);
+    else state.collapsed.add(name);
+    state.maximized = null;
+    applyLayout();
+  }
+
+  function toggleMaximize(name) {
+    state.maximized = state.maximized === name ? null : name;
+    applyLayout();
   }
 
   // ---------- tabs, panes, menus ----------
@@ -751,16 +875,43 @@
 
   let fileTarget = "data";
 
-  function loadFile(file, target) {
-    if (!/\.(ttl|turtle|shacl|txt)$/i.test(file.name) && file.type && file.type !== "text/turtle" && !file.type.startsWith("text/")) {
-      toast("Only Turtle files can be opened in the editors");
-      return;
-    }
-    file.text().then((text) => {
-      (target === "shapes" ? state.shapes : state.data).value = text;
+  /** Files the editor takes as they are; anything else is parsed on the server. */
+  const EDITOR_FILE = /\.(ttl|turtle|shacl|txt)$/i;
+  const EDITOR_BYTES = 1024 * 1024;
+
+  async function loadFile(file, target) {
+    const editor = target === "shapes" ? state.shapes : state.data;
+    if (EDITOR_FILE.test(file.name) && file.size <= EDITOR_BYTES) {
+      editor.value = await file.text();
+      if (target === "data") useServerData(false);
       toast(`Opened ${file.name}`);
       run();
-    });
+      return;
+    }
+    setBusy(true, `Reading ${file.name}…`);
+    let res;
+    try {
+      const r = await fetch(`/api/data?name=${encodeURIComponent(file.name)}`, { method: "POST", body: file });
+      if (!r.ok) throw new Error((await r.text()) || `HTTP ${r.status}`);
+      res = await r.json();
+    } catch (e) {
+      setBusy(false, "Ready");
+      toast(String(e.message || e).slice(0, 200));
+      return;
+    }
+    setBusy(false, "Ready");
+    if (res.text !== null && res.text !== undefined) {
+      editor.value = res.text;
+      if (target === "data") useServerData(false);
+      toast(`Opened ${file.name}`);
+    } else if (target === "data") {
+      setServerData(res.data);
+      toast(`Opened ${file.name}: ${res.data.triples.toLocaleString()} triples, kept on the server`);
+    } else {
+      toast(`${file.name} is too big for the rules editor`);
+      return;
+    }
+    run();
   }
 
   function wireDrop(card, target) {
@@ -857,9 +1008,22 @@
     else if (meta.preload) applySnapshot({ d: meta.preload.data, s: meta.preload.shapes });
     else if (saved && (saved.d || saved.s)) applySnapshot(saved);
     else if (examples.length) applySnapshot({ d: examples[0].data, s: examples[0].shapes });
+    // Data files given to the server that are too big for the editor; a shared
+    // link with data of its own uses that instead.
+    if (meta.server_data) {
+      state.serverData = meta.server_data;
+      useServerData(!(fromLink && fromLink.d));
+    }
+
+    const layout = storage((ls) => JSON.parse(ls.getItem(LAYOUT_KEY) || "null"), null);
+    if (layout) {
+      state.collapsed = new Set((layout.collapsed || []).filter((n) => ["data", "shapes", "results"].includes(n)));
+      state.maximized = ["data", "shapes", "results"].includes(layout.maximized) ? layout.maximized : null;
+    }
 
     wireEvents();
     wireSplitters();
+    applyLayout();
     renderTurtle();
     run();
   }
@@ -876,6 +1040,7 @@
       const ex = state.examples.find((x) => x.id === e.target.value);
       if (!ex) return;
       applySnapshot({ d: ex.data, s: ex.shapes, o: { i: true, m: Number($("opt-max").value) || 100, sd: false } });
+      useServerData(false);
       e.target.value = "";
       history.replaceState(null, "", location.pathname);
       toast(ex.description);
@@ -917,7 +1082,11 @@
       }
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") document.querySelectorAll(".menu-pop").forEach((m) => m.classList.add("hidden"));
+      if (e.key === "Escape") {
+        const open = [...document.querySelectorAll(".menu-pop")].some((m) => !m.classList.contains("hidden"));
+        document.querySelectorAll(".menu-pop").forEach((m) => m.classList.add("hidden"));
+        if (!open && state.maximized && !e.target.closest(".cm-editor, .CodeMirror")) toggleMaximize(state.maximized);
+      }
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && !e.target.closest(".cm-editor")) {
         e.preventDefault();
         run();
@@ -925,13 +1094,11 @@
     });
     document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => switchTab(b.dataset.tab)));
     document.querySelectorAll(".mobile-switch button").forEach((b) => b.addEventListener("click", () => switchPane(b.dataset.pane)));
-    document.querySelectorAll("[data-show]").forEach((b) =>
-      b.addEventListener("click", () => {
-        state.turtleShow = b.dataset.show;
-        document.querySelectorAll("[data-show]").forEach((x) => x.classList.toggle("active", x === b));
-        renderTurtle();
-      }),
-    );
+    document.querySelectorAll("[data-show]").forEach((b) => b.addEventListener("click", () => setTurtleShow(b.dataset.show)));
+    $("data-to-editor").addEventListener("click", () => (useServerData(false), run()));
+    $("data-to-server").addEventListener("click", () => (useServerData(true), run()));
+    document.querySelectorAll("[data-collapse]").forEach((b) => b.addEventListener("click", () => toggleCollapse(b.dataset.collapse)));
+    document.querySelectorAll("[data-maximize]").forEach((b) => b.addEventListener("click", () => toggleMaximize(b.dataset.maximize)));
     $("copy-turtle").addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(state.turtle.value);
@@ -972,6 +1139,7 @@
       const snap = await fromHash();
       if (snap) {
         applySnapshot(snap);
+        if (snap.d) useServerData(false);
         run();
       }
     });

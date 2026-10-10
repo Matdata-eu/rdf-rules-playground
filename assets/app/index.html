@@ -36,6 +36,7 @@
             <label class="field"><span>Most rounds</span><input type="number" id="opt-max" min="1" max="1000" value="100" /></label>
             <label class="check"><input type="checkbox" id="opt-shapes-in-data" /> <span><b>Read rules from the data too</b><small>Treat the data editor as part of the shapes graph, for files that keep both together.</small></span></label>
             <label class="check"><input type="checkbox" id="opt-auto" checked /> <span><b>Run while typing</b><small>Re-run a moment after every change.</small></span></label>
+            <div class="menu-foot"><a href="/licenses" target="_blank" rel="noopener">Third-party licenses</a></div>
           </div>
         </div>
         <button id="share-btn" class="btn" title="Copy a link with both editors in it">
@@ -69,12 +70,26 @@
             </div>
             <div class="editor-tools">
               <span id="data-error" class="err-chip hidden"></span>
-              <button class="icon-btn small" data-open="data" title="Open a Turtle file">
+              <button class="btn small ghost hidden" id="data-to-server" title="Run the rules on the data graph the server holds">Use loaded data</button>
+              <button class="icon-btn small" data-open="data" title="Open an RDF file: Turtle, N-Triples, RDF/XML, TriG, N-Quads, also gzipped">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" /></svg>
               </button>
+              <span class="pane-ctl hide-mobile">
+                <button class="icon-btn small" data-collapse="data" title="Collapse the data graph" aria-label="Collapse the data graph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg></button>
+                <button class="icon-btn small" data-maximize="data" title="Maximize the data graph (Esc restores)" aria-label="Maximize the data graph"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-max" d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /><path class="i-restore" d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" /></svg></button>
+              </span>
             </div>
           </div>
           <div class="editor-host" id="data-editor"></div>
+          <div class="data-server hidden" id="data-server">
+            <div class="data-server-bar">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="6" rx="7" ry="3" /><path d="M5 6v12c0 1.7 3.1 3 7 3s7-1.3 7-3V6M5 12c0 1.7 3.1 3 7 3s7-1.3 7-3" /></svg>
+              <span id="data-server-text"></span>
+              <span class="grow"></span>
+              <button class="btn small ghost" id="data-to-editor" title="Type data in the editor instead">Use the editor</button>
+            </div>
+            <div id="data-matgui" class="matgui-host compact"></div>
+          </div>
         </div>
         <div class="splitter" id="splitter" title="Drag to resize"></div>
         <div class="editor-card" id="shapes-card" data-pane="shapes">
@@ -92,19 +107,27 @@
                 </button>
                 <div id="snippets-menu" class="menu-pop hidden" role="menu"></div>
               </div>
-              <button class="icon-btn small" data-open="shapes" title="Open a Turtle file">
+              <button class="icon-btn small" data-open="shapes" title="Open an RDF file: Turtle, N-Triples, RDF/XML, TriG, N-Quads, also gzipped">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7a2 2 0 012-2h4l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H6a2 2 0 01-2-2z" /></svg>
               </button>
+              <span class="pane-ctl hide-mobile">
+                <button class="icon-btn small" data-collapse="shapes" title="Collapse the shapes editor" aria-label="Collapse the shapes editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6" /></svg></button>
+                <button class="icon-btn small" data-maximize="shapes" title="Maximize the shapes editor (Esc restores)" aria-label="Maximize the shapes editor"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-max" d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /><path class="i-restore" d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" /></svg></button>
+              </span>
             </div>
           </div>
           <div class="editor-host" id="shapes-editor"></div>
         </div>
-        <input type="file" id="file-input" accept=".ttl,.turtle,.shacl,text/turtle" hidden />
+        <input type="file" id="file-input" accept=".ttl,.turtle,.shacl,.nt,.ntriples,.rdf,.owl,.xml,.trig,.nq,.nquads,.gz,text/turtle" hidden />
       </section>
 
       <div class="vsplitter hide-mobile" id="vsplitter" title="Drag to resize"></div>
 
-      <section class="pane results" data-pane="results">
+      <section class="pane results" id="results" data-pane="results">
+        <button class="results-bar" id="results-bar" data-collapse="results" title="Show the result">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+          <span>Result <b id="bar-count"></b></span>
+        </button>
         <div class="summary" id="summary">
           <div class="summary-main">
             <div class="big"><span id="sum-inferred">–</span><small>inferred triples</small></div>
@@ -113,6 +136,10 @@
             <div class="stat"><span id="sum-time">–</span><small>ms</small></div>
           </div>
           <div class="status" id="status"><span class="spinner hidden" id="spinner"></span><span id="status-text">Ready</span></div>
+          <span class="pane-ctl hide-mobile">
+                <button class="icon-btn small" data-collapse="results" title="Collapse the result" aria-label="Collapse the result"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg></button>
+                <button class="icon-btn small" data-maximize="results" title="Maximize the result (Esc restores)" aria-label="Maximize the result"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="i-max" d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7" /><path class="i-restore" d="M4 14h6v6M20 10h-6V4M10 14l-7 7M14 10l7-7" /></svg></button>
+              </span>
         </div>
         <div id="notices" class="notices"></div>
         <nav class="tabs" role="tablist" aria-label="Result views">
@@ -149,7 +176,7 @@
           <div class="toolbar">
             <div class="seg" role="group" aria-label="What to show">
               <button data-show="inferred" class="active">Inferred only</button>
-              <button data-show="all">Data + inferred</button>
+              <button data-show="all" id="show-all">Data + inferred</button>
             </div>
             <span class="grow"></span>
             <button class="btn small" id="copy-turtle">Copy</button>

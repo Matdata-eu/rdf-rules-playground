@@ -28,6 +28,12 @@ node, and in which round. The same engine runs from the command line.
   rule's CONSTRUCT query there.
 - **Editors** with Turtle highlighting, syntax errors marked on their line,
   rule templates, files opened or dropped in, and running while you type.
+- **Big data graphs**: a data file in any RDF syntax, also gzipped, given to
+  `serve` or opened in the browser. When it holds more triples than the editor
+  takes (20 000 by default), it stays on the server and the data card becomes
+  a MatGUI query view of it; the rules still run on all of it.
+- **Focus**: collapse any section to its header, or maximize it to fill the
+  window (Esc restores). The layout is remembered.
 - **Share links** that hold both editors and the options, compressed into the
   URL. Nothing is stored on the server.
 - **Turtle and N-Triples downloads** of the inferred triples, or of the data
@@ -72,7 +78,22 @@ docker run --rm -p 8080:8080 ghcr.io/matdata-eu/shacl-af-playground
 ```sh
 shacl-af-playground                     # opens the playground in your browser
 shacl-af-playground serve --data data.ttl --shapes rules.ttl   # with your files loaded
+shacl-af-playground serve --data big.nt.gz part2.ttl --shapes rules.ttl
 ```
+
+`--data` takes one or more files in any syntax the command line reads (see
+`--format` below). Small data opens in the data editor. Data with more triples
+than `--max-editor-triples N` (default 20 000, or
+`SHACL_AF_PLAYGROUND_MAX_EDITOR_TRIPLES`) is loaded once and kept on the
+server: the data card then shows the file names and a MatGUI query view over
+`/api/data/{id}/sparql`, and every run uses that graph. **Use the editor**
+switches back to typing data, and **Use loaded data** returns to the files.
+Files opened or dropped in the browser work the same way. Share links never
+hold data kept on the server.
+
+Runs on big data list the first 20 000 inferred triples in the table; the
+summary counts all of them, and the downloads and the SPARQL tab have all of
+them.
 
 It starts with the first example; the **Examples** menu has four:
 
@@ -192,4 +213,13 @@ files there list versions and how to rebuild the bundles.
 
 ## License
 
-Apache-2.0
+Apache-2.0. The rule engine is this crate's own (`src/rules`), built on the
+[Oxigraph](https://github.com/oxigraph/oxigraph) crates (`oxrdf`, `oxttl`,
+`oxrdfxml`, `spargebra`, `spareval`, `sparesults`; MIT or Apache-2.0) for
+RDF parsing and SPARQL. Every third-party package compiled into the binary or
+bundled into its web assets uses a permissive license (MIT, Apache-2.0, BSD,
+ISC, Zlib, Unicode-3.0, MPL-2.0 as an alternative, and the SIL OFL for the
+Font Awesome font). [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) lists
+them with their license texts; the running playground serves it at
+`/licenses` (Options menu). Regenerate it with
+`scripts/third_party_notices.py` when dependencies change.

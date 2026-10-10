@@ -12,6 +12,7 @@ RUN mkdir src && echo 'fn main() {}' > src/main.rs && touch src/lib.rs \
 COPY src ./src
 COPY assets ./assets
 COPY examples ./examples
+COPY THIRD_PARTY_NOTICES.md ./
 RUN touch src/main.rs src/lib.rs && cargo build --release --locked
 
 # Runtime stage: glibc and nothing else, running as an unprivileged user.

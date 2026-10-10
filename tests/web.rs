@@ -6,6 +6,10 @@ use std::net::{SocketAddr, TcpStream};
 use std::time::Duration;
 
 fn start(limits: Option<Limits>) -> SocketAddr {
+    start_with(AppState::new(limits, None))
+}
+
+fn start_with(state: AppState) -> SocketAddr {
     let (tx, rx) = std::sync::mpsc::channel();
     std::thread::spawn(move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -15,8 +19,7 @@ fn start(limits: Option<Limits>) -> SocketAddr {
         rt.block_on(async move {
             let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
             tx.send(listener.local_addr().unwrap()).unwrap();
-            let app = api::router(AppState::new(limits, None))
-                .into_make_service_with_connect_info::<SocketAddr>();
+            let app = api::router(state).into_make_service_with_connect_info::<SocketAddr>();
             axum::serve(listener, app).await.unwrap();
         });
     });
@@ -226,4 +229,90 @@ fn public_mode_caps_inputs_and_rounds() {
     let res: serde_json::Value = serde_json::from_str(&body).unwrap();
     assert_eq!(res["iterations"], 3);
     assert!(res["stopped"].is_string());
+}
+
+const RECTANGLES: &str = "<http://example.org/r> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://example.org/Rectangle> .
+<http://example.org/r> <http://example.org/width> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer> .
+<http://example.org/r> <http://example.org/height> \"3\"^^<http://www.w3.org/2001/XMLSchema#integer> .
+";
+
+const SQUARES: &str = "@prefix ex: <http://example.org/> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+ex:S a sh:NodeShape ; sh:targetClass ex:Rectangle ;
+  sh:rule [ a sh:SPARQLRule ; sh:construct \"\"\"
+    PREFIX ex: <http://example.org/>
+    CONSTRUCT { $this ex:area ?a } WHERE { $this ex:width ?w ; ex:height ?h . BIND(?w * ?h AS ?a) }
+  \"\"\" ] .
+";
+
+#[test]
+fn opened_files_become_editor_text_when_small() {
+    let addr = start(None);
+    let (status, _, body) = request(addr, "POST", "/api/data?name=r.nt", &[], RECTANGLES);
+    assert_eq!(status, 200, "{body}");
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(
+        v["text"]
+            .as_str()
+            .unwrap()
+            .contains("<http://example.org/r>")
+    );
+    assert!(v["data"].is_null());
+}
+
+#[test]
+fn big_data_stays_on_the_server_and_is_queryable() {
+    let mut state = AppState::new(None, None);
+    state.max_editor_triples = 2;
+    let addr = start_with(state);
+    let (status, _, body) = request(addr, "POST", "/api/data?name=r.nt", &[], RECTANGLES);
+    assert_eq!(status, 200, "{body}");
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert!(v["text"].is_null());
+    assert_eq!(v["data"]["triples"], 3);
+    let id = v["data"]["id"].as_str().unwrap().to_string();
+
+    let req = serde_json::json!({ "dataId": id, "shapes": SQUARES }).to_string();
+    let (status, _, body) = request(
+        addr,
+        "POST",
+        "/api/infer",
+        &[("Content-Type", "application/json")],
+        &req,
+    );
+    assert_eq!(status, 200, "{body}");
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["data_triples"], 3);
+    assert_eq!(v["inferred_total"], 1);
+    assert!(v["inferred"][0]["o"].as_str().unwrap().starts_with("\"9\""));
+
+    let (status, _, body) = request(
+        addr,
+        "POST",
+        &format!("/api/data/{id}/sparql"),
+        &[
+            ("Content-Type", "application/sparql-query"),
+            ("Accept", "text/csv"),
+        ],
+        "SELECT (COUNT(*) AS ?n) { ?s ?p ?o }",
+    );
+    assert_eq!(status, 200, "{body}");
+    assert_eq!(body.lines().nth(1).unwrap().trim(), "3");
+
+    let (status, _, _) = request(
+        addr,
+        "GET",
+        "/api/data/nope/sparql?query=ASK%7B%7D",
+        &[],
+        "",
+    );
+    assert_eq!(status, 404);
+}
+
+#[test]
+fn serves_third_party_licenses() {
+    let addr = start(None);
+    let (status, _, body) = request(addr, "GET", "/licenses", &[], "");
+    assert_eq!(status, 200);
+    assert!(body.contains("Third-party notices"));
 }

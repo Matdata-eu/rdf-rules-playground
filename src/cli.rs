@@ -68,14 +68,28 @@ pub enum OutputFormat {
     Ntriples,
 }
 
-#[derive(Debug, Args, Default)]
+#[derive(Debug, Args)]
 pub struct ServeArgs {
-    /// Data file to open in the playground's data editor.
-    #[arg(short, long = "data", value_name = "FILE")]
-    pub data: Option<PathBuf>,
+    /// Data graph file(s) to open with: Turtle, N-Triples, RDF/XML, TriG or
+    /// N-Quads, also gzipped. Data with more triples than
+    /// --max-editor-triples stays on the server and is shown as a query view.
+    #[arg(short, long = "data", value_name = "FILE", num_args = 1..)]
+    pub data: Vec<PathBuf>,
     /// Shapes file to open in the playground's rules editor.
     #[arg(short, long = "shapes", value_name = "FILE")]
     pub shapes: Option<PathBuf>,
+    /// Syntax of the data files; detected from the extension by default.
+    #[arg(long, value_enum)]
+    pub format: Option<InputFormat>,
+    /// Most triples the data editor is given. Bigger data graphs, from the
+    /// command line or opened in the browser, are queried with MatGUI instead.
+    #[arg(
+        long = "max-editor-triples",
+        value_name = "N",
+        default_value_t = 20_000,
+        env = "SHACL_AF_PLAYGROUND_MAX_EDITOR_TRIPLES"
+    )]
+    pub max_editor_triples: usize,
     /// Address to listen on.
     #[arg(long, default_value = "127.0.0.1:0", env = "SHACL_AF_PLAYGROUND_BIND")]
     pub bind: String,

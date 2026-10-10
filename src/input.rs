@@ -183,6 +183,40 @@ pub fn load_files<P: AsRef<Path>>(
     Ok(())
 }
 
+/// Parse an uploaded file, detecting its syntax from `name` (which may end
+/// in `.gz`). Fails once more than `max_triples` have been read.
+pub fn load_bytes(
+    name: &str,
+    bytes: &[u8],
+    graph: &mut Graph,
+    prefixes: &mut Vec<(String, String)>,
+    max_triples: Option<usize>,
+) -> Result<()> {
+    let fmt = detect_format(Path::new(name))?;
+    let raw: Box<dyn Read + '_> = if name.to_ascii_lowercase().ends_with(".gz") {
+        Box::new(MultiGzDecoder::new(bytes))
+    } else {
+        Box::new(bytes)
+    };
+    let mut too_many = false;
+    let found = parse_triples(BufReader::new(raw), fmt, |t| {
+        if max_triples.is_some_and(|m| graph.len() >= m) {
+            too_many = true;
+            return;
+        }
+        graph.insert(&t);
+    })
+    .with_context(|| format!("failed to parse {name}"))?;
+    if too_many {
+        bail!(
+            "{name} holds more than {} triples, the most this server accepts",
+            max_triples.unwrap_or_default()
+        );
+    }
+    merge_prefixes(prefixes, found);
+    Ok(())
+}
+
 /// Parse Turtle typed in the playground. Fails with a [`SyntaxError`] when
 /// the text does not parse, or when it holds more than `max_triples`.
 pub fn parse_turtle(

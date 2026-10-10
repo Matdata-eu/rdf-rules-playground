@@ -38,6 +38,9 @@ pub static ASSETS: &[Asset] = &[
     ),
 ];
 
+/// Licenses of the third-party code in the binary, served at `/licenses`.
+pub static THIRD_PARTY_NOTICES: &str = include_str!("../../THIRD_PARTY_NOTICES.md");
+
 pub fn lookup(path: &str) -> Option<&'static Asset> {
     ASSETS.iter().find(|a| a.path == path)
 }

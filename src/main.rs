@@ -1,6 +1,6 @@
 use clap::Parser;
 use oxrdf::Graph;
-use shacl_af_playground::cli::{Cli, Command, InferArgs, OutputFormat, ServeArgs};
+use shacl_af_playground::cli::{Cli, Command, InferArgs, OutputFormat};
 use shacl_af_playground::input::{load_files, merge_prefixes};
 use shacl_af_playground::rules::{self, Options};
 use shacl_af_playground::{output, web};
@@ -11,10 +11,11 @@ fn main() -> ExitCode {
     let result = match cli.command {
         Some(Command::Infer(args)) => infer(args),
         Some(Command::Serve(args)) => web::serve(args),
-        None => web::serve(ServeArgs {
-            bind: "127.0.0.1:0".to_string(),
-            ..ServeArgs::default()
-        }),
+        // No command: `serve` with its defaults, environment variables included.
+        None => match Cli::parse_from(["shacl-af-playground", "serve"]).command {
+            Some(Command::Serve(args)) => web::serve(args),
+            _ => unreachable!("parsed as serve"),
+        },
     };
     match result {
         Ok(code) => code,
