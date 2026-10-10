@@ -1,7 +1,10 @@
 # Third-party notices
 
-rdf-rules-playground is licensed under Apache-2.0 (see LICENSE). It includes
-the following third-party software, each under its own license. Where a
+rdf-rules-playground is © 2026 Mathias Vanden Auweele (Matdata), licensed
+under Apache-2.0 (see LICENSE). Questions, bug reports and feature requests:
+https://github.com/Matdata-eu/rdf-rules-playground/issues
+
+It includes the following third-party software, each under its own license. Where a
 package offers a choice of licenses, it is used under any one of them. The
 license texts are at the end of this file.
 
