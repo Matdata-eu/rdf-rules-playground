@@ -27,6 +27,8 @@ jobs:
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           sed -i "s/^version = \".*\"/version = \"$TAG_VERSION\"/" Cargo.toml
+          # Keep Cargo.lock in step, or the --locked build in the Dockerfile fails.
+          sed -i "/^name = \"rdf-rules-playground\"$/{n;s/^version = \".*\"/version = \"$TAG_VERSION\"/}" Cargo.lock
 
       # Releases also get an arm64 image (Apple silicon, Graviton, Raspberry
       # Pi). Emulating arm64 is slow, so pull requests and main build amd64 only.

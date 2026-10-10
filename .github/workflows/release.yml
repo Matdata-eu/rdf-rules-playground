@@ -30,7 +30,8 @@ jobs:
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           sed -i.bak "s/^version = \".*\"/version = \"$TAG_VERSION\"/" Cargo.toml
-          rm -f Cargo.toml.bak
+          sed -i.bak "/^name = \"rdf-rules-playground\"$/{n;s/^version = \".*\"/version = \"$TAG_VERSION\"/;}" Cargo.lock
+          rm -f Cargo.toml.bak Cargo.lock.bak
 
       - name: Run tests
         run: cargo test
@@ -82,7 +83,8 @@ jobs:
         run: |
           TAG_VERSION=${GITHUB_REF#refs/tags/v}
           sed -i.bak "s/^version = \".*\"/version = \"$TAG_VERSION\"/" Cargo.toml
-          rm -f Cargo.toml.bak
+          sed -i.bak "/^name = \"rdf-rules-playground\"$/{n;s/^version = \".*\"/version = \"$TAG_VERSION\"/;}" Cargo.lock
+          rm -f Cargo.toml.bak Cargo.lock.bak
 
       - name: Build release
         run: cargo build --release --target ${{ matrix.target }}
