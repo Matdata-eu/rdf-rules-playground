@@ -1,0 +1,8 @@
+@prefix ex: <http://example.org/geo#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:Brussels ex:population 1222637 ; ex:country ex:Belgium .
+ex:Ghent ex:population 265086 ; ex:country ex:Belgium .
+ex:Leuven ex:population 102275 ; ex:country ex:Belgium .
+ex:Bruges ex:population 119485 ; ex:country ex:Belgium .
+ex:Amsterdam ex:population 931298 ; ex:country ex:Netherlands .

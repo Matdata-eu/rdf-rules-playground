@@ -1,0 +1,14 @@
+@prefix ex: <http://example.org/shop#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:Order1 a ex:Order ;
+    ex:customer ex:Ann ;
+    ex:line [ ex:product "Keyboard" ; ex:amount 49.90 ; ex:quantity 1 ] ,
+            [ ex:product "Mouse" ; ex:amount 19.95 ; ex:quantity 2 ] .
+
+ex:Order2 a ex:Order ;
+    ex:customer ex:Ben ;
+    ex:line [ ex:product "Monitor" ; ex:amount 219.00 ; ex:quantity 1 ] .
+
+ex:Ann ex:firstName "Ann" ; ex:lastName "Peeters" .
+ex:Ben ex:firstName "Ben" ; ex:lastName "Janssens" .

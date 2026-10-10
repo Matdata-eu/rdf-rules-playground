@@ -1,0 +1,61 @@
+# The rectangle examples from the SHACL Advanced Features specification
+# (sections 8.2 and 8.3): a triple rule with conditions infers which
+# rectangles are squares, and a SPARQL rule computes their area.
+
+@prefix ex: <http://example.org/shapes#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex: sh:declare [
+    sh:prefix "ex" ;
+    sh:namespace "http://example.org/shapes#"^^xsd:anyURI ;
+] .
+
+ex:Rectangle a rdfs:Class, sh:NodeShape ;
+    rdfs:label "Rectangle" ;
+    sh:property [
+        sh:path ex:height ;
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+    ] ;
+    sh:property [
+        sh:path ex:width ;
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:minCount 1 ;
+    ] ;
+    # Only rectangles that conform to this shape, and whose width equals
+    # their height, are squares.
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "Squares" ;
+        sh:subject sh:this ;
+        sh:predicate rdf:type ;
+        sh:object ex:Square ;
+        sh:condition ex:Rectangle ;
+        sh:condition [
+            sh:property [
+                sh:path ex:width ;
+                sh:equals ex:height ;
+            ] ;
+        ] ;
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "Area" ;
+        sh:prefixes ex: ;
+        sh:condition ex:Rectangle ;
+        sh:construct """
+            CONSTRUCT {
+                $this ex:area ?area .
+            }
+            WHERE {
+                $this ex:width ?width ;
+                      ex:height ?height .
+                BIND (?width * ?height AS ?area) .
+            }
+            """ ;
+    ] .

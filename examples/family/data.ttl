@@ -1,0 +1,8 @@
+@prefix ex: <http://example.org/family#> .
+
+ex:Alice a ex:Person ; ex:name "Alice" ; ex:parent ex:Bob , ex:Carol .
+ex:Bob a ex:Person ; ex:name "Bob" ; ex:parent ex:Dave .
+ex:Carol a ex:Person ; ex:name "Carol" ; ex:gender ex:Female .
+ex:Dave a ex:Person ; ex:name "Dave" ; ex:gender ex:Male ; ex:parent ex:Erin .
+ex:Erin a ex:Person ; ex:name "Erin" ; ex:gender ex:Female .
+ex:Frank a ex:Person ; ex:name "Frank" ; ex:gender ex:Male ; ex:parent ex:Bob .

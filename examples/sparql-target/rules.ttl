@@ -1,0 +1,41 @@
+# A SPARQL-based target picks the focus nodes, and a SPARQL rule adds an
+# rdfs:label and a class. The second rule is deactivated: switch
+# sh:deactivated to false to see what it adds.
+
+@prefix ex: <http://example.org/geo#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:BigCityShape a sh:NodeShape ;
+    sh:target [
+        a sh:SPARQLTarget ;
+        sh:select """
+            PREFIX ex: <http://example.org/geo#>
+            SELECT ?this WHERE { ?this ex:population ?p . FILTER (?p >= 200000) }
+            """ ;
+    ] ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "big city" ;
+        sh:construct """
+            PREFIX ex: <http://example.org/geo#>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            CONSTRUCT {
+                $this a ex:BigCity ;
+                      rdfs:label ?label .
+            }
+            WHERE {
+                BIND (STRAFTER(STR($this), "#") AS ?label)
+            }
+            """ ;
+    ] ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "country has a big city" ;
+        sh:deactivated true ;
+        sh:subject [ sh:path ex:country ] ;
+        sh:predicate ex:hasBigCity ;
+        sh:object sh:this ;
+    ] .

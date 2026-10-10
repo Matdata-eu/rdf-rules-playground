@@ -1,0 +1,79 @@
+# Aggregates and functions in node expressions: sh:count, sh:sum, sh:max,
+# and a call to a SPARQL function declared in the shapes graph. The
+# "big order" rule runs after the total is known, thanks to sh:order.
+
+@prefix ex: <http://example.org/shop#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:OrderShape a sh:NodeShape ;
+    sh:targetClass ex:Order ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "line count" ;
+        sh:subject sh:this ;
+        sh:predicate ex:lineCount ;
+        sh:object [ sh:count [ sh:path ex:line ] ] ;
+    ] ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "total" ;
+        sh:subject sh:this ;
+        sh:predicate ex:total ;
+        sh:object [ sh:sum [ sh:path ( ex:line ex:lineTotal ) ] ] ;
+        sh:order 2 ;
+    ] ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "most expensive item" ;
+        sh:subject sh:this ;
+        sh:predicate ex:maxAmount ;
+        sh:object [ sh:max [ sh:path ( ex:line ex:amount ) ] ] ;
+    ] ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "big order" ;
+        sh:subject sh:this ;
+        sh:predicate rdf:type ;
+        sh:object ex:BigOrder ;
+        sh:condition [
+            sh:property [ sh:path ex:total ; sh:minInclusive 100 ] ;
+        ] ;
+        sh:order 3 ;
+    ] ;
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "customer name" ;
+        sh:subject sh:this ;
+        sh:predicate ex:customerName ;
+        sh:object ( ex:fullName [ sh:path ex:customer ] ) ;
+    ] .
+
+# Every order line gets its line total before the order total is computed.
+ex:LineShape a sh:NodeShape ;
+    sh:targetObjectsOf ex:line ;
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "line total" ;
+        sh:order 1 ;
+        sh:construct """
+            PREFIX ex: <http://example.org/shop#>
+            CONSTRUCT { $this ex:lineTotal ?t }
+            WHERE { $this ex:amount ?a ; ex:quantity ?q . BIND (?a * ?q AS ?t) }
+            """ ;
+    ] .
+
+ex:fullName a sh:SPARQLFunction ;
+    rdfs:comment "The first and last name of a person." ;
+    sh:parameter [ sh:path ex:person ] ;
+    sh:returnType xsd:string ;
+    sh:select """
+        PREFIX ex: <http://example.org/shop#>
+        SELECT ?name
+        WHERE {
+            $person ex:firstName ?f ; ex:lastName ?l .
+            BIND (CONCAT(?f, " ", ?l) AS ?name)
+        }
+        """ .

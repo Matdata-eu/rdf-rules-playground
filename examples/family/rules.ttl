@@ -1,0 +1,68 @@
+# Family relations with triple rules and path expressions. The ancestor
+# rule feeds on its own output, so it needs several rounds to settle:
+# compare "Repeat until nothing new" with a single pass.
+
+@prefix ex: <http://example.org/family#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+ex:PersonShape a sh:NodeShape ;
+    sh:targetClass ex:Person ;
+
+    # child: the inverse of parent
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "child" ;
+        sh:subject [ sh:path ex:parent ] ;
+        sh:predicate ex:child ;
+        sh:object sh:this ;
+    ] ;
+
+    # grandparent: two parent steps
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "grandparent" ;
+        sh:subject sh:this ;
+        sh:predicate ex:grandparent ;
+        sh:object [ sh:path ( ex:parent ex:parent ) ] ;
+    ] ;
+
+    # ancestor: parents, and the ancestors of parents (needs iteration)
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "ancestor" ;
+        sh:subject sh:this ;
+        sh:predicate ex:ancestor ;
+        sh:object [ sh:union (
+            [ sh:path ex:parent ]
+            [ sh:path ( ex:parent ex:ancestor ) ]
+        ) ] ;
+    ] ;
+
+    # mother: the parents that conform to ex:FemaleShape
+    sh:rule [
+        a sh:TripleRule ;
+        rdfs:label "mother" ;
+        sh:subject sh:this ;
+        sh:predicate ex:mother ;
+        sh:object [
+            sh:filterShape ex:FemaleShape ;
+            sh:nodes [ sh:path ex:parent ] ;
+        ] ;
+    ] ;
+
+    # siblings: children of my parents, minus myself
+    sh:rule [
+        a sh:SPARQLRule ;
+        rdfs:label "sibling" ;
+        sh:order 1 ;
+        sh:construct """
+            PREFIX ex: <http://example.org/family#>
+            CONSTRUCT { $this ex:sibling ?s }
+            WHERE { $this ex:parent/ex:child ?s . FILTER (?s != $this) }
+            """ ;
+    ] .
+
+ex:FemaleShape a sh:NodeShape ;
+    sh:property [ sh:path ex:gender ; sh:hasValue ex:Female ] .

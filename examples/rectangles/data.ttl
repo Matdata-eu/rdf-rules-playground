@@ -1,0 +1,12 @@
+@prefix ex: <http://example.org/shapes#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ex:InvalidRectangle a ex:Rectangle .
+
+ex:NonSquareRectangle a ex:Rectangle ;
+    ex:height 2 ;
+    ex:width 3 .
+
+ex:SquareRectangle a ex:Rectangle ;
+    ex:height 4 ;
+    ex:width 4 .
