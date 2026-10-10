@@ -602,6 +602,7 @@ pre.query {
 .data-server-bar .grow { flex: 1; }
 .matgui-host.compact { min-height: 0; overflow: auto; padding: 6px 8px; }
 .menu-foot { border-top: 1px solid var(--border); margin-top: 6px; padding: 8px 4px 2px; font-size: 12.5px; }
+.menu-foot p { margin: 0 0 4px; color: var(--muted); }
 .menu-foot a { color: var(--accent); text-decoration: none; }
 .menu-foot a:hover { text-decoration: underline; }
 

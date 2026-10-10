@@ -12,7 +12,8 @@ use std::path::PathBuf;
     long_about = "Run SHACL Advanced Features rules (sh:TripleRule, sh:SPARQLRule) on RDF data.\n\n\
                   Without a command, the playground opens in your browser: type or paste data \
                   and rules, run them, and see which rule inferred which triple. `infer` runs \
-                  the same engine from the command line."
+                  the same engine from the command line.",
+    after_help = "Questions, bug reports and feature requests: https://github.com/Matdata-eu/rdf-rules-playground/issues"
 )]
 pub struct Cli {
     #[command(subcommand)]

@@ -217,6 +217,22 @@ Third-party browser code is vendored under `assets/vendor`: MatGUI (MIT),
 Tabulator (MIT) and CodeMirror 6 with a Turtle grammar (MIT). The `NOTICE.md`
 files there list versions and how to rebuild the bundles.
 
+## Questions, bugs and feature requests
+
+Please open an issue on GitHub:
+<https://github.com/Matdata-eu/rdf-rules-playground/issues>.
+
+## Credits
+
+rdf-rules-playground is written by Mathias Vanden Auweele
+([Matdata](https://matdata.eu/)). It is built on
+[Oxigraph](https://github.com/oxigraph/oxigraph)'s RDF and SPARQL crates,
+[axum](https://github.com/tokio-rs/axum), [clap](https://github.com/clap-rs/clap),
+[MatGUI](https://github.com/Matdata-eu/MatGUI) (Matdata's fork of
+[YASGUI](https://github.com/zazuko/Yasgui)), [Tabulator](https://tabulator.info)
+and [CodeMirror 6](https://codemirror.net/). The full list is in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
 ## License
 
 Apache-2.0. The rule engine is this crate's own (`src/rules`), built on the

@@ -99,8 +99,10 @@ def table(rows):
 def main():
     js = npm(sys.argv[1:])
     print("# Third-party notices\n")
-    print("rdf-rules-playground is licensed under Apache-2.0 (see LICENSE). It includes")
-    print("the following third-party software, each under its own license. Where a")
+    print("rdf-rules-playground is © 2026 Mathias Vanden Auweele (Matdata), licensed")
+    print("under Apache-2.0 (see LICENSE). Questions, bug reports and feature requests:")
+    print("https://github.com/Matdata-eu/rdf-rules-playground/issues\n")
+    print("It includes the following third-party software, each under its own license. Where a")
     print("package offers a choice of licenses, it is used under any one of them. The")
     print("license texts are at the end of this file.\n")
     print("## Browser code (assets/vendor)\n")
