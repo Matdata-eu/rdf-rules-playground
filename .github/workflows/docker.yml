@@ -67,3 +67,21 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # After a release, redeploy the semantics stack on Portainer so it pulls the new
+  # image. The stack webhook URL is stored in the PORTAINER_SEMANTICS_WEBHOOK secret.
+  deploy:
+    name: Deploy
+    needs: image
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Redeploy the Portainer stack
+        env:
+          WEBHOOK: ${{ secrets.PORTAINER_SEMANTICS_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK" ]; then
+            echo "PORTAINER_SEMANTICS_WEBHOOK is not set, skipping."
+            exit 0
+          fi
+          curl -fsS -X POST --max-time 300 "$WEBHOOK"
