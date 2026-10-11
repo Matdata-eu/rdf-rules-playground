@@ -1,0 +1,52 @@
+publiccodeYmlVersion: '0'
+name: rdf-rules-playground
+url: https://github.com/Matdata-eu/rdf-rules-playground
+landingURL: https://rdf-rules-playground.matdata.eu/
+softwareVersion: 1.0.0
+releaseDate: '2026-10-10'
+platforms:
+- web
+- linux
+- windows
+- mac
+categories:
+- knowledge-management
+- it-development
+developmentStatus: stable
+softwareType: standalone/web
+organisation:
+  uri: https://matdata.eu
+  name: Matdata
+intendedAudience:
+  scope:
+  - government
+  - science-and-technology
+  - infrastructures
+  - transportation
+description:
+  en:
+    shortDescription: Try SHACL Advanced Features rules in the browser and see which rule inferred each
+      triple.
+    longDescription: |
+      rdf-rules-playground lets you try SHACL Advanced Features rules (sh:TripleRule and sh:SPARQLRule) in the browser or from the command line.
+
+      Paste a data graph and a shapes graph with rules, and it shows the inferred triples. For each inferred triple it shows which rule produced it, on which focus node and in which round, which makes rules much easier to debug. It supports conditions, rule order, iteration until no new triples appear, SPARQL 1.2 and RDF 1.2, and share links that hold the whole session.
+    documentation: https://rdf-rules-playground.matdata.eu/
+    features:
+    - sh:TripleRule and sh:SPARQLRule
+    - Explanation of each inferred triple
+    - Conditions, ordering and iteration
+    - SPARQL queries over the inferred data
+    - Runs in the browser and on the command line
+legal:
+  license: Apache-2.0
+  mainCopyrightOwner: Matdata
+maintenance:
+  type: internal
+  contacts:
+  - name: Mathias Vanden Auweele
+    affiliation: Matdata
+localisation:
+  localisationReady: false
+  availableLanguages:
+  - en
