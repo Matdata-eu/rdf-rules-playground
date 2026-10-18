@@ -1,0 +1,7 @@
+# Advisories cargo audit should not fail on. Each one needs a reason and a way out.
+[advisories]
+ignore = [
+    # quick-xml < 0.41, pulled in by oxrdfxml (oxigraph). Needs a new oxigraph release.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]
