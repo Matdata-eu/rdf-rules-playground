@@ -28,7 +28,7 @@ spargebra = { version = "0.4", features = ["sparql-12"] }
 sparesults = { version = "0.3", features = ["sparql-12"] }
 oxsdatatypes = "0.2"
 regex = "1"
-getrandom = "0.3"
+getrandom = "0.4"
 
 [profile.release]
 lto = "thin"
